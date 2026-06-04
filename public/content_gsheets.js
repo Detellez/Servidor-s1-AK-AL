@@ -6,7 +6,7 @@
     // ==========================================
     const SERVERS_DB = {
         'crm-server-centrals1': 'https://script.google.com/macros/s/AKfycbzd0yXMyFtN3OMLb4bWlbvmifj2ENvQMhcJ_ZdSmuMAVQ6diTnPsAAyfxsDWcJFZpnv/exec',
-        'crm-serveralejandra': 'https://script.google.com/macros/s/AKfycbyitxqrbKSUDhOFHDWlk_fOih1gCIQ9jj4JNHm0YQg9qavl_ICbSWOSZjgy0dthb8o24A/exec',
+        'servidor-s1-ak-al': 'https://script.google.com/macros/s/AKfycbyitxqrbKSUDhOFHDWlk_fOih1gCIQ9jj4JNHm0YQg9qavl_ICbSWOSZjgy0dthb8o24A/exec',
         'crm-server-central-3h13': 'https://script.google.com/macros/s/AKfycbwUR9Mcw0RvQvxI2ArwNhwucKd3GkPjcjsmNMnq4iVXnjkKkzdxNMN2KyxbAxrGTsrK/exec'
     };
 
