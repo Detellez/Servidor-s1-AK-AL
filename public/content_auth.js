@@ -737,7 +737,7 @@
             script: 'https://script.google.com/macros/s/AKfycbzd0yXMyFtN3OMLb4bWlbvmifj2ENvQMhcJ_ZdSmuMAVQ6diTnPsAAyfxsDWcJFZpnv/exec',
             firebase: 'https://notificacionesss1-default-rtdb.firebaseio.com/alerta_activa.json'
         },
-        'crm-serveralejandra': {
+        'servidor-s1-ak-al': {
             script: 'https://script.google.com/macros/s/AKfycbyitxqrbKSUDhOFHDWlk_fOih1gCIQ9jj4JNHm0YQg9qavl_ICbSWOSZjgy0dthb8o24A/exec',
             firebase: 'https://notificaciones-ssts-default-rtdb.firebaseio.com/alerta_activa.json'
         },
