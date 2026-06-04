@@ -2035,15 +2035,12 @@ function showNotification(message, msgId, type = 'info') {
             // Pintar y Reproducir Audio
             if (aviso.type === 'ALERT' && !isAlertAck) {
                 localStorage.setItem('SHARED_MSG_DATA', JSON.stringify({id: aviso.id, msg: aviso.msg, timestamp: Date.now(), type: 'ALERT'}));
-                safeSendMessage({ action: "unmute_tab" });
                 showPersistentAlert(aviso.msg, aviso.id);
             } else if (aviso.type === 'NORMAL' && !isNotifShown) {
                 localStorage.setItem('NOTIF_SHOWN_' + aviso.id, 'true');
                 localStorage.setItem('SHARED_MSG_DATA', JSON.stringify({id: aviso.id, msg: aviso.msg, timestamp: Date.now(), type: 'NORMAL'}));
-                safeSendMessage({ action: "unmute_tab" });
                 playAlertSound(1);
                 showNotification('📢 ' + aviso.msg, aviso.id, 'info');
-                trySystemNotification(aviso.msg, aviso.id, '📢 NUEVO AVISO CRM');
             }
         }
     });
