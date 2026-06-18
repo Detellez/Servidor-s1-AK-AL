@@ -68,6 +68,12 @@
             input:checked + .slider-mora:before { transform: translateX(16px); }
             .label-mora { font-size: 11px; font-weight: 800; cursor: pointer; user-select: none; transition: 0.3s; letter-spacing: 0.5px; }
             
+            /* 🔥 SCROLL PARA PANELES DE FILTROS 🔥 */
+            .scroll-filtros::-webkit-scrollbar { width: 6px; }
+            .scroll-filtros::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.7); border-radius: 4px; margin: 2px; }
+            .scroll-filtros::-webkit-scrollbar-thumb { background: #8b5cf6; border-radius: 4px; }
+            .scroll-filtros::-webkit-scrollbar-thumb:hover { background: #a78bfa; }
+
             /* 🔥 NUEVOS ESTILOS PARA EDICIÓN DE CORREOS 🔥 */
             .correo-celda { cursor: pointer; padding: 3px 6px; border-radius: 4px; transition: 0.2s; display: inline-block; min-width: 60px; font-weight: bold; }
             .correo-alerta { background-color: #f97316 !important; color: white !important; box-shadow: 0 0 5px rgba(249,115,22,0.5); }
@@ -273,57 +279,55 @@
         const pageSize = 5000;
         const maxPagesPerRun = 20;
         let todosLosRegistrosBrutos = [];
-        
-        const etapasAbuscar = [-1, 0, 1, 2, 3, 4, 5, 6, 7]; 
 
         mostrarAviso(`Buscando cuentas en ${countryInfo.name}...`, '#3b82f6', 'info');
 
         try {
-            for (const sId of etapasAbuscar) {
-                let page = 1;
-                let totalPages = 1;
+            // 🔥 ELIMINADO EL PRE-ESCANEO POR ETAPAS. TRAE TODA LA BASE DIRECTO.
+            let page = 1;
+            let totalPages = 1;
 
-                while (true) {
-                    try {
-                        const listUrl = `${baseUrl}/api/manage/urge/task/waitUrgeTaskPage?v=${Date.now()}`;
-                        const respList = await fetch(listUrl, {
-                            method: 'POST',
-                            headers: { 'Authentication': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify({ stageId: sId, current: page, size: pageSize })
-                        });
+            while (true) {
+                try {
+                    const listUrl = `${baseUrl}/api/manage/urge/task/waitUrgeTaskPage?v=${Date.now()}`;
+                    const respList = await fetch(listUrl, {
+                        method: 'POST',
+                        headers: { 'Authentication': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        // Al no enviar 'stageId', la API escupe todo el listado global de una sola vez
+                        body: JSON.stringify({ current: page, size: pageSize })
+                    });
 
-                        if (!respList.ok) break; 
-                        
-                        const jsonList = await respList.json();
-                        
-                        // 🔥 RECUPERACIÓN EN VUELO SI EL TOKEN EXPIRA EN MEDIO PROCESO 🔥
-                        if (jsonList.code === 401 || jsonList.code === 403) {
-                            const nuevoTokenRaw = obtenerTokenAutomatico();
-                            if (nuevoTokenRaw && decodeURIComponent(nuevoTokenRaw) !== token) {
-                                token = decodeURIComponent(nuevoTokenRaw); // Lo actualizamos internamente
-                                inputToken.value = nuevoTokenRaw; // Actualizamos el panel visual
-                                mostrarAviso('🔄 Token expiró. Renovando automáticamente...', '#8b5cf6', 'info');
-                                continue; // Reintenta esta misma página sin abortar la descarga
-                            } else {
-                                throw new Error("TokenExpirado");
-                            }
+                    if (!respList.ok) break; 
+                    
+                    const jsonList = await respList.json();
+                    
+                    // 🔥 RECUPERACIÓN EN VUELO SI EL TOKEN EXPIRA EN MEDIO PROCESO 🔥
+                    if (jsonList.code === 401 || jsonList.code === 403) {
+                        const nuevoTokenRaw = obtenerTokenAutomatico();
+                        if (nuevoTokenRaw && decodeURIComponent(nuevoTokenRaw) !== token) {
+                            token = decodeURIComponent(nuevoTokenRaw); // Lo actualizamos internamente
+                            inputToken.value = nuevoTokenRaw; // Actualizamos el panel visual
+                            mostrarAviso('🔄 Token expiró. Renovando automáticamente...', '#8b5cf6', 'info');
+                            continue; // Reintenta esta misma página sin abortar la descarga
+                        } else {
+                            throw new Error("TokenExpirado");
                         }
-                        
-                        if (jsonList.code !== 200 && jsonList.code !== 20000 && jsonList.code !== 0) break;
-
-                        const registros = jsonList?.data?.records || jsonList?.records || [];
-                        if (registros.length === 0) break; 
-                        if (jsonList?.data?.pages) totalPages = jsonList.data.pages;
-
-                        todosLosRegistrosBrutos.push(...registros);
-
-                        page++;
-                        if (page > maxPagesPerRun || page > totalPages) break;
-                        await new Promise(r => setTimeout(r, 100)); 
-                    } catch (e) {
-                        if (e.message === "TokenExpirado") throw e; 
-                        break; 
                     }
+                    
+                    if (jsonList.code !== 200 && jsonList.code !== 20000 && jsonList.code !== 0) break;
+
+                    const registros = jsonList?.data?.records || jsonList?.records || [];
+                    if (registros.length === 0) break; 
+                    if (jsonList?.data?.pages) totalPages = jsonList.data.pages;
+
+                    todosLosRegistrosBrutos.push(...registros);
+
+                    page++;
+                    if (page > maxPagesPerRun || page > totalPages) break;
+                    await new Promise(r => setTimeout(r, 100)); 
+                } catch (e) {
+                    if (e.message === "TokenExpirado") throw e; 
+                    break; 
                 }
             }
 
@@ -370,6 +374,8 @@
                     let linkDescarga = c.downloadLink || "";
                     let dniUrl = c.idNoUrl || "";
                     let selfUrl = c.livingNessUrl || ""; 
+                    let ref1 = ""; // Variables listas
+                    let ref2 = ""; // Variables listas
 
                     if (c.taskId && c.orderId && detailCalls < maxDetailCallsPerRun) {
                         detailCalls++;
@@ -401,6 +407,15 @@
                                     linkDescarga = detJson.data.downloadLink || linkDescarga;
                                     dniUrl = detJson.data.idNoUrl || dniUrl;
                                     selfUrl = detJson.data.livingNessUrl || selfUrl;
+                                    
+                                    // 🔥 EXTRACCIÓN DE REFERENCIAS (BLINDADO) 🔥
+                                    let arrayContactos = detJson.data.contacts || detJson.data.contactList || detJson.data.linkmanList || [];
+                                    if (arrayContactos.length > 0) {
+                                        ref1 = String(arrayContactos[0].phoneNumber || arrayContactos[0].phone || "");
+                                    }
+                                    if (arrayContactos.length > 1) {
+                                        ref2 = String(arrayContactos[1].phoneNumber || arrayContactos[1].phone || "");
+                                    }
                                 }
                             }
                         } catch(e) {}
@@ -411,8 +426,17 @@
                     const idPlan = isVariousPlan ? idPlanStr : (idPlanStr.includes('p') ? idPlanStr : 'p' + idPlanStr);
 
                     const prefixClean = countryInfo.prefix.replace('+', '');
+                    
+                    // Lógica Teléfono Titular
                     const telLimpio = telefono.replace(/[^0-9]/g, '');
                     const telefonoFinal = telLimpio.length >= countryInfo.digits ? (prefixClean + telLimpio.slice(-countryInfo.digits)) : (prefixClean + telLimpio);
+
+                    // 🔥 LÓGICA DE REFERENCIAS: Cortamos los últimos N dígitos y pegamos prefijo
+                    const ref1Limpio = ref1.replace(/[^0-9]/g, '');
+                    const ref1Final = ref1Limpio ? (ref1Limpio.length >= countryInfo.digits ? (prefixClean + ref1Limpio.slice(-countryInfo.digits)) : (prefixClean + ref1Limpio)) : '';
+                    
+                    const ref2Limpio = ref2.replace(/[^0-9]/g, '');
+                    const ref2Final = ref2Limpio ? (ref2Limpio.length >= countryInfo.digits ? (prefixClean + ref2Limpio.slice(-countryInfo.digits)) : (prefixClean + ref2Limpio)) : '';
 
                     return {
                         idPlan: idPlan, telefono: telefonoFinal, nombre: c.userName || c.name || "",
@@ -421,7 +445,8 @@
                         diasMora: String(c.overdueDay || ""), cargoMora: cargoMora, montoPago: montoPago,
                         fechaConexion: c.openTime ? String(c.openTime).split(' ')[0] : '',
                         isRepay: c.isRepay, cuenta: c.urgeUserName || "Sin Asignar",
-                        linkDescarga: linkDescarga, dniUrl: dniUrl, selfUrl: selfUrl
+                        linkDescarga: linkDescarga, dniUrl: dniUrl, selfUrl: selfUrl,
+                        ref1: ref1Final, ref2: ref2Final // <-- ¡Se inyectan aquí!
                     };
                 });
 
@@ -758,22 +783,22 @@
                     
                     <div>
                         <label style="font-size: 12px; color: #cbd5e1; font-weight:bold; display:block; margin-bottom:5px;">📱 Aplicación (Múltiple):</label>
-                        <div id="plus-apps-container" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                        <div id="plus-apps-container" class="scroll-filtros" style="display:flex; flex-wrap:wrap; gap:6px; max-height: 90px; overflow-y: auto; align-content: flex-start; padding-right: 4px;"></div>
                     </div>
 
                     <div>
                         <label style="font-size: 12px; color: #cbd5e1; font-weight:bold; display:block; margin-bottom:5px;">📆 Fechas de Conexión (Múltiple):</label>
-                        <div id="plus-fechas-container" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                        <div id="plus-fechas-container" class="scroll-filtros" style="display:flex; flex-wrap:wrap; gap:6px; max-height: 120px; overflow-y: auto; align-content: flex-start; padding-right: 4px;"></div>
                     </div>
 
                     <div>
                         <label style="font-size: 12px; color: #cbd5e1; font-weight:bold; display:block; margin-bottom:5px;">⚠️ Días de Mora (Múltiple):</label>
-                        <div id="plus-moras-container" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                        <div id="plus-moras-container" class="scroll-filtros" style="display:flex; flex-wrap:wrap; gap:6px; max-height: 120px; overflow-y: auto; align-content: flex-start; padding-right: 4px;"></div>
                     </div>
 
                     <div>
                         <label style="font-size: 12px; color: #cbd5e1; font-weight:bold; display:block; margin-bottom:5px;">💰 Estado (Múltiple):</label>
-                        <div id="plus-repay-container" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                        <div id="plus-repay-container" class="scroll-filtros" style="display:flex; flex-wrap:wrap; gap:6px; max-height: 70px; overflow-y: auto; align-content: flex-start; padding-right: 4px;"></div>
                     </div>
                 </div>
             `;
@@ -956,24 +981,32 @@
                 let lote = obtenerLoteFiltrado();
                 if (lote.length === 0) return mostrarAviso('No hay contactos', '#fbbf24', 'warning');
                 
-                const prefijo = prompt("Ingrese un prefijo para los nombres (Ej: CUENTA 1).\nSi no desea prefijo, deje en blanco:", "");
-                if (prefijo === null) return; 
-                
-                let csvContent = "\uFEFFFirst Name,Middle Name,Last Name,Phonetic First Name,Phonetic Middle Name,Phonetic Last Name,Name Prefix,Name Suffix,Nickname,File As,Organization Name,Organization Title,Organization Department,Birthday,Notes,Photo,Labels,E-mail 1 - Label,E-mail 1 - Value,Phone 1 - Label,Phone 1 - Value\n"; 
+                // 🔥 Cabecera modificada según el formato solicitado
+                let csvContent = "\uFEFFID PLAN,NOMBRE,APP,PRODUCTO,DEUDA TOTAL,PRORROGA,DIAS MORA,CARGO POR MORA,MONTO CONTRATO,NUMERO,REFERENCIA 1,REFERENCIA 2\n"; 
                 
                 lote.forEach(c => {
-                    let nom = c.nombre ? c.nombre.trim() : '';
-                    if (prefijo !== "") nom = `${prefijo} ${nom}`; 
-                    nom = nom.replace(/"/g, '""'); 
+                    let idPlan = c.idPlan || '';
+                    let nom = c.nombre ? c.nombre.trim().replace(/"/g, '""') : '';
+                    let app = c.app || '';
+                    let producto = c.producto || '';
+                    let monto = c.monto || '0';
+                    let reinv = c.importeReinv || '0';
+                    let diasMora = c.diasMora || '0';
+                    let cargoMora = c.cargoMora || '0';
+                    let montoPago = c.montoPago || '0';
+                    
                     let tel = c.telefono ? c.telefono.replace('+', '').trim() : ''; 
-                    let correo = c.correo ? c.correo.trim() : '';
-                    csvContent += `"${nom}","","","","","","","","","","","","","","","","","","${correo}","","${tel}"\n`;
+                    let r1 = c.ref1 ? c.ref1.replace('+', '').trim() : '';
+                    let r2 = c.ref2 ? c.ref2.replace('+', '').trim() : '';
+
+                    // Construcción de la fila respetando el nuevo orden
+                    csvContent += `"${idPlan}","${nom}","${app}","${producto}","${monto}","${reinv}","${diasMora}","${cargoMora}","${montoPago}","${tel}","${r1}","${r2}"\n`;
                 });
                 
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href = url;
-                a.download = `Contactos_${new Date().toISOString().split('T')[0]}.csv`;
+                a.download = `Gestión_Cartera_${new Date().toISOString().split('T')[0]}.csv`;
                 document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 mostrarAviso('CSV descargado 📥', '#f59e0b', 'success');
             };
