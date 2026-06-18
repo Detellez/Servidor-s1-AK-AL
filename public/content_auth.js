@@ -1099,32 +1099,20 @@ let alertIntervals = [];
 function playPersistentSound(esUrgente = true) {
     stopAlertSound(); 
 
-    // 🔥 BLOQUEO ANTI-ECO MODO ALERTA (El secreto de la sincronización)
-    // Evita que 10 pestañas griten al mismo tiempo. Solo la primera tomará el control del audio.
     const lastAlertSound = parseInt(localStorage.getItem('LAST_ALERT_SOUND_TS') || '0');
     if (Date.now() - lastAlertSound < 2000) return; 
     localStorage.setItem('LAST_ALERT_SOUND_TS', Date.now().toString());
 
     const soundData = localStorage.getItem('SYSTEM_NOTIF_SOUND') || 'https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3';
-    let audioObj = new Audio(soundData);
-    audioObj.loop = true;
-    audioObj.volume = 1.0;
-
-    // 🔥 MOTOR ANTI-SUEÑO PARA AUDIO: Obliga al navegador a repetir el audio minimizado
-    audioObj.addEventListener('ended', function() {
-        this.currentTime = 0;
-        this.play().catch(e=>{});
-    });
+    
+    // 🔥 ENVIAR SIRENA AL BACKGROUND (Inmune al bloqueo, hace bucle infinito)
+    safeSendMessage({ action: 'play_audio_maestro', soundUrl: soundData, loop: true });
 
     let titleToggle = false;
     const originalTitle = document.title;
+    window.currentAlertAttack = { originalTitle: originalTitle }; // Solo guarda el título
 
     const triggerAttack = () => {
-        if (audioObj.paused) {
-            audioObj.muted = false;
-            audioObj.play().catch(e => console.log("Esperando interacción..."));
-        }
-
         if (esUrgente && 'speechSynthesis' in window && !window.speechSynthesis.speaking) {
             let msgVoz = new SpeechSynthesisUtterance("Atención, tienes un nuevo mensaje urgente.");
             msgVoz.volume = 1.0;
@@ -1161,12 +1149,9 @@ function playPersistentSound(esUrgente = true) {
             if(overlayBox) {
                 overlayBox.style.backgroundColor = titleToggle ? 'rgba(150, 0, 0, 0.95)' : 'rgba(15, 23, 42, 0.95)';
             }
-            if(audioObj.paused) audioObj.play().catch(e=>{});
         }, 600); 
         alertIntervals.push(visualInterval);
     }
-
-    window.currentAlertAttack = { audio: audioObj, originalTitle: originalTitle };
 }
 
 function stopAlertSound() {
@@ -1174,10 +1159,8 @@ function stopAlertSound() {
     alertIntervals.forEach(clearInterval);
     alertIntervals = [];
     
-    // Apagar Audio Clásico y restaurar título
+    // Restaurar título
     if (window.currentAlertAttack) {
-        window.currentAlertAttack.audio.pause();
-        window.currentAlertAttack.audio.currentTime = 0;
         document.title = window.currentAlertAttack.originalTitle;
         window.currentAlertAttack = null;
     }
@@ -1186,6 +1169,9 @@ function stopAlertSound() {
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
     }
+
+    // 🔥 FRENO MAESTRO AL BACKGROUND (Corta la sirena al dar clic)
+    safeSendMessage({ action: 'stop_audio_maestro' });
 }
 // ==========================================
     // NOTIFICACIÓN PERSISTENTE (CON BOTÓN ACEPTAR)
@@ -1258,7 +1244,12 @@ function showNotification(message, msgId, type = 'info') {
 
     function closeThisToast(element) {
         if (!element) return;
-        element.style.opacity = '0'; element.style.transform = 'translateX(-50%) translateY(-20px)';
+        
+        // 🔥 FRENO MAESTRO AL BACKGROUND (Corta el ding/audio al dar clic en ACEPTAR)
+        safeSendMessage({ action: 'stop_audio_maestro' });
+
+        element.style.opacity = '0'; 
+        element.style.transform = 'translateX(-50%) translateY(-20px)';
         setTimeout(() => element.remove(), 300);
     }
 
@@ -1990,24 +1981,17 @@ function showNotification(message, msgId, type = 'info') {
     initAudioSystem();
 
     function playAlertSound(times = 1) {
-        const soundData = localStorage.getItem('SYSTEM_NOTIF_SOUND');
-        if (!soundData) return; 
+    const soundData = localStorage.getItem('SYSTEM_NOTIF_SOUND');
+    if (!soundData) return; 
 
-        // Bloqueo Anti-Eco entre pestañas
-        const lastSound = parseInt(localStorage.getItem('LAST_SOUND_PLAY_TS') || '0');
-        if (Date.now() - lastSound < 2000) return; 
-        localStorage.setItem('LAST_SOUND_PLAY_TS', Date.now());
+    // Bloqueo Anti-Eco entre pestañas
+    const lastSound = parseInt(localStorage.getItem('LAST_SOUND_PLAY_TS') || '0');
+    if (Date.now() - lastSound < 2000) return; 
+    localStorage.setItem('LAST_SOUND_PLAY_TS', Date.now());
 
-
-        const audio = new Audio(soundData);
-        audio.volume = 1.0; 
-        let playCount = 0;
-        audio.addEventListener('ended', function() {
-            playCount++;
-            if (playCount < times) { audio.currentTime = 0; audio.play().catch(e => {}); }
-        });
-        audio.play().catch(e => console.warn('Audio bloqueado (falta interacción)'));
-    }
+    // 🔥 ENVIAR SONIDO AL BACKGROUND (Sin bucle)
+    safeSendMessage({ action: 'play_audio_maestro', soundUrl: soundData, loop: false });
+}
     // =========================================================
     // 🔥 ESCUCHA EN TIEMPO REAL (FIREBASE) + ANTI-SUEÑO
     // =========================================================
@@ -2436,4 +2420,3 @@ function showNotification(message, msgId, type = 'info') {
     }, 2000);
 
 })();
-
