@@ -1070,7 +1070,20 @@ function showPersistentAlert(msg, msgId) {
             const user = localStorage.getItem('usuarioLogueado');
             // 🔥 RED BLINDADA
             const urlLeido = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=LEIDO`;
-            try { safeSendMessage({ action: 'proxy_fetch', url: urlLeido, options: { method: 'GET' } }); } catch(e){}
+            
+            // 🛠️ FIX: Motor de Insistencia para la alerta roja
+            const enviarConInsistencia = (intentosRestantes) => {
+                try {
+                    safeSendMessage({ action: 'proxy_fetch', url: urlLeido, options: { method: 'GET' } }, (response) => {
+                        if (!response || !response.success || (response.data && response.data.error)) {
+                            if (intentosRestantes > 0) {
+                                setTimeout(() => enviarConInsistencia(intentosRestantes - 1), 2000 + Math.random() * 3000);
+                            }
+                        }
+                    });
+                } catch(e) {}
+            };
+            enviarConInsistencia(6);
         };
         box.append(icon, text, btn);
         overlay.append(box);
@@ -1225,7 +1238,20 @@ function showNotification(message, msgId, type = 'info') {
             const user = localStorage.getItem('usuarioLogueado');
             // 🔥 RED BLINDADA
             const urlAceptado = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=ACEPTADO`;
-            try { safeSendMessage({ action: 'proxy_fetch', url: urlAceptado, options: { method: 'GET' } }); } catch(e){}
+            
+            // 🛠️ FIX: Motor de Insistencia para que no se pierda la confirmación
+            const enviarConInsistencia = (intentosRestantes) => {
+                try {
+                    safeSendMessage({ action: 'proxy_fetch', url: urlAceptado, options: { method: 'GET' } }, (response) => {
+                        if (!response || !response.success || (response.data && response.data.error)) {
+                            if (intentosRestantes > 0) {
+                                setTimeout(() => enviarConInsistencia(intentosRestantes - 1), 2000 + Math.random() * 3000);
+                            }
+                        }
+                    });
+                } catch(e) {}
+            };
+            enviarConInsistencia(6);
         };
     }
 
@@ -2035,12 +2061,15 @@ function showNotification(message, msgId, type = 'info') {
             // Pintar y Reproducir Audio
             if (aviso.type === 'ALERT' && !isAlertAck) {
                 localStorage.setItem('SHARED_MSG_DATA', JSON.stringify({id: aviso.id, msg: aviso.msg, timestamp: Date.now(), type: 'ALERT'}));
+                safeSendMessage({ action: "unmute_tab" });
                 showPersistentAlert(aviso.msg, aviso.id);
             } else if (aviso.type === 'NORMAL' && !isNotifShown) {
                 localStorage.setItem('NOTIF_SHOWN_' + aviso.id, 'true');
                 localStorage.setItem('SHARED_MSG_DATA', JSON.stringify({id: aviso.id, msg: aviso.msg, timestamp: Date.now(), type: 'NORMAL'}));
+                safeSendMessage({ action: "unmute_tab" });
                 playAlertSound(1);
                 showNotification('📢 ' + aviso.msg, aviso.id, 'info');
+                trySystemNotification(aviso.msg, aviso.id, '📢 NUEVO AVISO CRM');
             }
         }
     });
