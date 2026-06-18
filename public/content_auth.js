@@ -1069,7 +1069,7 @@ function showPersistentAlert(msg, msgId) {
             localStorage.setItem('ALERT_ACK_' + msgId, Date.now());
             const user = localStorage.getItem('usuarioLogueado');
             // 🔥 RED BLINDADA
-            const urlLeido = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=LEIDO`;
+            const urlLeido = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=LEIDO&crm=${window.location.hostname}`;
             
             // 🛠️ FIX: Motor de Insistencia para la alerta roja
             const enviarConInsistencia = (intentosRestantes) => {
@@ -1237,7 +1237,7 @@ function showNotification(message, msgId, type = 'info') {
             localStorage.setItem('NOTIF_ACK_' + msgId, Date.now()); // Memoria Local
             const user = localStorage.getItem('usuarioLogueado');
             // 🔥 RED BLINDADA
-            const urlAceptado = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=ACEPTADO`;
+            const urlAceptado = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=ACEPTADO&crm=${window.location.hostname}`;
             
             // 🛠️ FIX: Motor de Insistencia para que no se pierda la confirmación
             const enviarConInsistencia = (intentosRestantes) => {
@@ -2041,7 +2041,7 @@ function showNotification(message, msgId, type = 'info') {
                 const randomDelay = Math.floor(Math.random() * 11000) + 1000; 
 
                 setTimeout(() => {
-                    const urlEntrega = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${aviso.id}&usuario=${encodeURIComponent(miUsuario)}&ts=${tiempoCapturado}&status=ENTREGADO`;
+                    const urlEntrega = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${aviso.id}&usuario=${encodeURIComponent(miUsuario)}&ts=${tiempoCapturado}&status=ENTREGADO&crm=${window.location.hostname}`;
                     
                     const enviarConInsistencia = (intentosRestantes) => {
                         try {
@@ -2179,7 +2179,7 @@ function showNotification(message, msgId, type = 'info') {
                 // Reportar entregado si Firebase falló
                 if (!isDelivered) {
                     localStorage.setItem('DELIVERED_' + msgId, 'true');
-                    const urlEntregaHB = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=ENTREGADO`;
+                    const urlEntregaHB = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=ENTREGADO&crm=${window.location.hostname}`;
                     try { safeSendMessage({ action: 'proxy_fetch', url: urlEntregaHB, options: { method: 'GET' } }); } catch(e){}
                 }
 
