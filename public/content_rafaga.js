@@ -986,9 +986,12 @@
                 
                 lote.forEach(c => {
                     let idPlan = c.idPlan || '';
-                    let nom = c.nombre ? c.nombre.trim().replace(/"/g, '""') : '';
-                    let app = c.app || '';
-                    let producto = c.producto || '';
+                    
+                    // Limpiamos comillas y comas internas para que el CSV plano no se rompa
+                    let nom = c.nombre ? c.nombre.trim().replace(/["',]/g, ' ') : '';
+                    let app = c.app ? c.app.replace(/["',]/g, ' ') : '';
+                    let producto = c.producto ? c.producto.replace(/["',]/g, ' ') : '';
+                    
                     let monto = c.monto || '0';
                     let reinv = c.importeReinv || '0';
                     let diasMora = c.diasMora || '0';
@@ -999,8 +1002,8 @@
                     let r1 = c.ref1 ? c.ref1.replace('+', '').trim() : '';
                     let r2 = c.ref2 ? c.ref2.replace('+', '').trim() : '';
 
-                    // Construcción de la fila respetando el nuevo orden
-                    csvContent += `"${idPlan}","${nom}","${app}","${producto}","${monto}","${reinv}","${diasMora}","${cargoMora}","${montoPago}","${tel}","${r1}","${r2}"\n`;
+                    // Construcción de la fila SIN COMILLAS, solo separada por comas
+                    csvContent += `${idPlan},${nom},${app},${producto},${monto},${reinv},${diasMora},${cargoMora},${montoPago},${tel},${r1},${r2}\n`;
                 });
                 
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
