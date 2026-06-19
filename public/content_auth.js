@@ -752,6 +752,10 @@
         'server-al-t0': {
             script: 'https://script.google.com/macros/s/AKfycbx2MmJpsF1jgwyhmH4AuYpOoRQKv4U6AEo9HQiDv7LxXx8TR3qNHFLczu1TyCMvCAsl/exec',
             firebase: 'https://notificacionalt0-default-rtdb.firebaseio.com/alerta_activa.json'
+        },
+        'server-al-t1': {
+            script: 'https://script.google.com/macros/s/AKfycbxsyFiCV1bhHvfPFXCANqN9Ce4ap-DtABPgqdZ_5H74NMwa_1tk1Y8FNzvfUvUkjBiLbQ/exec',
+            firebase: 'https://notificacionalamza-default-rtdb.firebaseio.com/alerta_activa.json'
         }
     };
 
