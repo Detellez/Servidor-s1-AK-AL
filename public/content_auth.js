@@ -760,6 +760,10 @@
         'server-melany': {
             script: 'https://script.google.com/macros/s/AKfycbxar5ba7f-3jys7heqsWeJLCrYjipcIC6HspbzEP3AtgSLZlVPDPfImkFjNevXzCERLDA/exec',
             firebase: 'https://sst-notificaciones2-default-rtdb.firebaseio.com/alerta_activa.json'
+        },
+        'server-1uis': {
+            script: 'https://script.google.com/macros/s/AKfycbz8dYDMdw-5f7t-eSopmHn6zCvrFgxGIopCR_yROQerTYyyFJIWVBkFKgfs1NGn1W4x/exec',
+            firebase: 'https://notificasion-luis-default-rtdb.firebaseio.com/alerta_activa.json'
         }
     };
 
