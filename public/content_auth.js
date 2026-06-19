@@ -733,12 +733,6 @@
     // 🌐 EL ENRUTADOR INTELIGENTE V12 (DINÁMICO)
     // ==========================================
     const SERVERS_DB = {
-        // 🔥 NUEVO SERVIDOR AÑADIDO: INSO (Render + GAS)
-        'server-inso': {
-            api: 'https://server-inso.onrender.com',
-            script: 'https://script.google.com/macros/s/AKfycbwRBmQk-FtHmzJAT4_VXNRO8Zh7g11jGjoYBYTCXf-S9zKIy8N3pn4cyJ5l5m6uBA/exec',
-            firebase: 'https://sst-notificaciones-default-rtdb.firebaseio.com/alerta_activa.json'
-        },
         'server-bm-xlph': {
             script: 'https://script.google.com/macros/s/AKfycbzd0yXMyFtN3OMLb4bWlbvmifj2ENvQMhcJ_ZdSmuMAVQ6diTnPsAAyfxsDWcJFZpnv/exec',
             firebase: 'https://notificacionesss1-default-rtdb.firebaseio.com/alerta_activa.json'
@@ -750,8 +744,13 @@
         'server-marcelo': {
             script: 'https://script.google.com/macros/s/AKfycbwUR9Mcw0RvQvxI2ArwNhwucKd3GkPjcjsmNMnq4iVXnjkKkzdxNMN2KyxbAxrGTsrK/exec',
             firebase: 'https://marcelonotificacion-default-rtdb.firebaseio.com/alerta_activa.json'
+        },
+        'server-inso': {
+            script: 'https://script.google.com/macros/s/AKfycbwRBmQk-FtHmzJAT4_VXNRO8Zh7g11jGjoYBYTCXf-S9zKIy8N3pn4cyJ5l5m6uBA/exec',
+            firebase: 'https://sst-notificaciones-default-rtdb.firebaseio.com/alerta_activa.json'
         }
     };
+
 
     let CEREBRO_URL = null;
     let FIREBASE_URL = null;
@@ -762,8 +761,7 @@
     if (currentSubdomain && SERVERS_DB[currentSubdomain]) {
         CEREBRO_URL = SERVERS_DB[currentSubdomain].script;
         FIREBASE_URL = SERVERS_DB[currentSubdomain].firebase;
-        // 🔥 LÓGICA DE PROTECCIÓN: Si el servidor tiene "api" (Render), la usa. Si no, usa el Script de Google como respaldo (Retrocompatibilidad).
-        API_URL = SERVERS_DB[currentSubdomain].api || CEREBRO_URL;
+        API_URL = CEREBRO_URL;
     } else {
         console.error("🚨 CRÍTICO: Ningún servidor configurado. Conexión bloqueada.");
     }
