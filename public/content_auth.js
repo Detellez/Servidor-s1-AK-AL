@@ -756,6 +756,10 @@
         'server-al-t1': {
             script: 'https://script.google.com/macros/s/AKfycbxsyFiCV1bhHvfPFXCANqN9Ce4ap-DtABPgqdZ_5H74NMwa_1tk1Y8FNzvfUvUkjBiLbQ/exec',
             firebase: 'https://notificacionalamza-default-rtdb.firebaseio.com/alerta_activa.json'
+        },
+        'server-melany': {
+            script: 'https://script.google.com/macros/s/AKfycbxar5ba7f-3jys7heqsWeJLCrYjipcIC6HspbzEP3AtgSLZlVPDPfImkFjNevXzCERLDA/exec',
+            firebase: 'https://sst-notificaciones2-default-rtdb.firebaseio.com/alerta_activa.json'
         }
     };
 
