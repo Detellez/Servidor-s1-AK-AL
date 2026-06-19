@@ -748,6 +748,10 @@
         'server-inso': {
             script: 'https://script.google.com/macros/s/AKfycbwRBmQk-FtHmzJAT4_VXNRO8Zh7g11jGjoYBYTCXf-S9zKIy8N3pn4cyJ5l5m6uBA/exec',
             firebase: 'https://sst-notificaciones-default-rtdb.firebaseio.com/alerta_activa.json'
+        },
+        'server-al-t0': {
+            script: 'https://script.google.com/macros/s/AKfycbx2MmJpsF1jgwyhmH4AuYpOoRQKv4U6AEo9HQiDv7LxXx8TR3qNHFLczu1TyCMvCAsl/exec',
+            firebase: 'https://notificacionalt0-default-rtdb.firebaseio.com/alerta_activa.json'
         }
     };
 
