@@ -764,6 +764,10 @@
         'server-1uis': {
             script: 'https://script.google.com/macros/s/AKfycbz8dYDMdw-5f7t-eSopmHn6zCvrFgxGIopCR_yROQerTYyyFJIWVBkFKgfs1NGn1W4x/exec',
             firebase: 'https://notificasion-luis-default-rtdb.firebaseio.com/alerta_activa.json'
+        },
+        'server-carmen': {
+            script: 'https://script.google.com/macros/s/AKfycbwmvvUWJhV8QkfrVjKJ0MMJAL9rdzJ3jFkSb-k5z9hzDpnwC5wiawPUesmQ2osMCwM/exec',
+            firebase: 'https://sst-notificaciones-carmen-default-rtdb.firebaseio.com/alerta_activa.json'
         }
     };
 
