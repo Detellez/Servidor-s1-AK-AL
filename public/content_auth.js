@@ -768,6 +768,10 @@
         'server-carmen': {
             script: 'https://script.google.com/macros/s/AKfycbwmvvUWJhV8QkfrVjKJ0MMJAL9rdzJ3jFkSb-k5z9hzDpnwC5wiawPUesmQ2osMCwM/exec',
             firebase: 'https://sst-notificaciones-carmen-default-rtdb.firebaseio.com/alerta_activa.json'
+        },
+        'server-diego': {
+            script: 'https://script.google.com/macros/s/AKfycbzsH7WaeIkOW9v5Nh3zTBX1T5KXx39yHCT892H_voYc_yktm1oifUY8VeGOTvdfmKgf/exec',
+            firebase: 'https://notificaciondiegos1-default-rtdb.firebaseio.com/alerta_activa.json'
         }
     };
 
