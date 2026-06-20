@@ -567,7 +567,7 @@
         e.stopPropagation();
         closeMenuCompletely();
         const isVitalKey = (key) => {
-            const exactMatches = ['usuarioLogueado', 'sessionId', 'loginTimestamp', 'sessionLimit', 'configRef', 'deviceUniqueId', 'CUSTOM_BTNS_LIST', 'CRM_GHOST_MODE', 'SYSTEM_NOTIF_SOUND', 'firebaseToken'];
+            const exactMatches = ['usuarioLogueado', 'sessionId', 'loginTimestamp', 'sessionLimit', 'configRef', 'deviceUniqueId', 'CUSTOM_BTNS_LIST', 'CRM_GHOST_MODE', 'SYSTEM_NOTIF_SOUND', 'firebaseToken', 'serverSubdomain'];
             const prefixes = ['LAST_', 'CRM_', 'ALERT_', 'NOTIF_', 'DELIVERED_', 'SHARED_', 'RAFAGA_'];
             if (exactMatches.includes(key)) return true;
             if (prefixes.some(prefix => key.startsWith(prefix))) return true;
@@ -946,7 +946,10 @@
     // ==========================================
     async function getPublicIP() {
         try {
-            const response = await fetch('https://api.ipify.org?format=json');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const response = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+            clearTimeout(timeoutId);
             const data = await response.json();
             return data.ip;
         } catch (e) { return 'Oculta/Error'; }
@@ -1444,6 +1447,8 @@ function showNotification(message, msgId, type = 'info') {
         }
 
         try {
+            if (!API_URL) throw new Error('Servidor no configurado');
+
             mostrarProgreso('Validando credenciales...', '🔐', '#3b82f6'); 
             
             const urlLogin = new URL(API_URL);
@@ -1713,6 +1718,12 @@ function showNotification(message, msgId, type = 'info') {
             const u = userInput.inp.value.trim();
             const p = passInput.inp.value.trim();
             if (!u || !p) { msgBox.innerText = '⚠️ Ingrese credenciales'; msgBox.style.color = '#ffd700'; return; }
+
+            if (!API_URL) { 
+                msgBox.innerText = '🚨 Error Crítico: Servidor no configurado.'; 
+                msgBox.style.color = '#ef4444'; 
+                return; 
+            }
 
             // 🔥 REGLA RESTAURADA: OBLIGAR A QUE EL DEVICE_ID TENGA EL NOMBRE DEL USUARIO
             let deviceUniqueId = localStorage.getItem('deviceUniqueId');
