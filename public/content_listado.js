@@ -570,30 +570,41 @@
             };
 
             btnAbrirVisibles.onclick = async () => {
-                let targetData = window.appState.pageSize === 'ALL' ? window.appState.filteredData : window.appState.filteredData.slice((window.appState.currentPage - 1) * window.appState.pageSize, window.appState.currentPage * window.appState.pageSize);
-                if(targetData.length === 0) return alert("No hay clientes visibles.");
+                // 🛡️ BLOQUEO ANTI-DOBLE CLIC: Previene que corran dos procesos a la vez
+                if (window.appState.isOpening) return alert("Ya se están abriendo pestañas. Espera a que termine.");
                 
-                const confirmado = await mostrarConfirmacionHacker(`¿Abrir <b>${targetData.length}</b> productos en total?<br><span style="color:#39ff14; font-size:12px;">(Se abrirán TODOS los productos. Los clientes duplicados se agruparán al inicio).</span>`);
+                let currentViewData = window.appState.pageSize === 'ALL' ? window.appState.filteredData : window.appState.filteredData.slice((window.appState.currentPage - 1) * window.appState.pageSize, window.appState.currentPage * window.appState.pageSize);
+                
+                const chkActivos = Array.from(document.querySelectorAll('.chk-row:checked'));
+                const targetData = currentViewData.filter(c => 
+                    chkActivos.some(chk => chk.getAttribute('data-uid') === String(c.userId) && chk.getAttribute('data-tid') === String(c.taskId))
+                );
+
+                if(targetData.length === 0) return alert("No hay clientes seleccionados (tiqueados).");
+                
+                const confirmado = await mostrarConfirmacionHacker(`¿Abrir a los clientes seleccionados?<br><span style="color:#39ff14; font-size:12px;">(Se omitirán préstamos duplicados. Solo abrirá 1 pestaña por usuario).</span>`);
                 if(!confirmado) return;
                 
-                logMsg(`> Preparando lista de ${targetData.length} productos...`, '#0ea5e9');
+                window.appState.isOpening = true; // 🔒 Activar candado de proceso
+                logMsg(`> Preparando lista limpia sin pestañas duplicadas...`, '#0ea5e9');
 
-                // 1. Contar frecuencias para saber quiénes son múltiples
                 const counts = {};
                 targetData.forEach(c => counts[c.userId] = (counts[c.userId] || 0) + 1);
 
-                // 2. Separar duplicados de únicos
+                const procesados = new Set();
                 const duplicadosArr = []; const unicosArr = [];
                 
-                // 3. Ordenar todo por fecha antes de separar (Más reciente primero)
                 const sortedData = [...targetData].sort((a, b) => new Date(b.openTime || 0) - new Date(a.openTime || 0));
 
+                // 🛡️ DEDUPLICACIÓN EXACTA: Ignora la apertura doble del mismo cliente
                 sortedData.forEach(c => {
-                    if (counts[c.userId] > 1) duplicadosArr.push(c);
-                    else unicosArr.push(c);
+                    if (!procesados.has(c.userId)) {
+                        procesados.add(c.userId);
+                        if (counts[c.userId] > 1) duplicadosArr.push(c);
+                        else unicosArr.push(c);
+                    }
                 });
 
-                // 4. Unir priorizando múltiples al inicio
                 const finalToOpen = [...duplicadosArr, ...unicosArr];
                 let abiertas = 0;
 
@@ -610,10 +621,11 @@
                     await new Promise(r => setTimeout(r, 450));
                 }
                 
-                // 🔥 LOG FINAL SÚPER RESALTADO (BLANCO CON BORDE NEÓN) Y SIN ALERTA 🔥
                 logMsg(`<div style="background:#e2e8f0; color:#0f172a; padding:8px 12px; border-radius:6px; font-weight:900; font-size:14px; text-transform:uppercase; border:3px solid #39ff14; text-shadow:none; margin-top:8px; box-shadow:0 0 15px rgba(57,255,20,0.7); text-align:center;">
-                    > FIN: ${abiertas} PESTAÑAS ABIERTAS (TODAS). MÚLTIPLES PRIMERO.
+                    > FIN: ${abiertas} PESTAÑAS ABIERTAS.
                 </div>`, '#39ff14');
+                
+                window.appState.isOpening = false; // 🔓 Quitar candado de proceso
             };
 
             btnPausar.onclick = () => {
@@ -626,7 +638,18 @@
                 btnEjecutar.style.display = 'block'; btnEjecutar.style.backgroundColor = '#10b981'; renderTable(); 
             };
 
-            toolbar.append(msgContainer, sizeContainer, controlesContainer); leftCol.appendChild(toolbar);
+            // 🔥 NUEVAS CASILLAS DE DESTINATARIOS PARA EL SEGUIMIENTO 🔥
+            const targetsContainer = document.createElement('div');
+            targetsContainer.innerHTML = `
+                <label style="font-size:11px;color:#fbbf24;display:block;margin-bottom:2px;font-weight:bold;">Destinatarios:</label>
+                <div style="display:flex; gap: 8px; background: rgba(0,0,0,0.5); padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(251,191,36,0.3); height: 28px; box-sizing: border-box; align-items: center;">
+                    <label style="font-size:11px; color:#39ff14; cursor:pointer; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="chk-target-titular" checked style="accent-color:#39ff14;"> Titular</label>
+                    <label style="font-size:11px; color:#0ea5e9; cursor:pointer; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="chk-target-ref1" style="accent-color:#0ea5e9;"> Ref 1</label>
+                    <label style="font-size:11px; color:#d946ef; cursor:pointer; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="chk-target-ref2" style="accent-color:#d946ef;"> Ref 2</label>
+                </div>
+            `;
+
+            toolbar.append(msgContainer, targetsContainer, sizeContainer, controlesContainer); leftCol.appendChild(toolbar);
 
             if (true) {
                 const filterBar = document.createElement('div');
@@ -635,12 +658,11 @@
                 const uniqueApps = [...new Set(window.appState.rawData.map(c => c.appName || c.productName).filter(Boolean))].sort();
                 const uniqueDays = [...new Set(window.appState.rawData.map(c => c.overdueDay).filter(d => d !== undefined))].sort((a,b)=>a-b);
                 const uniqueDates = [...new Set(window.appState.rawData.map(c => c.openTime ? c.openTime.split(' ')[0] : null).filter(Boolean))].sort((a,b)=>new Date(b)-new Date(a));
-                const top5Dates = uniqueDates.slice(0, 5);
+                // 🔥 Se eliminó el límite top5Dates para mostrar el historial completo de fechas 🔥
 
                 const baseInputStyle = "background:#1e293b;color:#fff;border:1px solid #475569;padding:4px;border-radius:4px;font-size:11px;outline:none;";
                 const getOptionsHtml = (arr) => arr.map(o => `<option value="${o}">${o}</option>`).join('');
 
-                // 🔥 NUEVA UI: Función para crear menú desplegable con checkboxes
                 const createMultiCheckHtml = (id, title, items) => {
                     const chks = items.map(i => `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 2px;"><input type="checkbox" class="${id}-chk" value="${i}"> ${i}</label>`).join('');
                     return `
@@ -650,20 +672,25 @@
                             <span id="${id}-lbl" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70px;">Todos</span> 
                             <span style="font-size:8px; margin-left:5px;">▼</span>
                         </div>
-                        <div id="${id}-menu" style="display:none; position:absolute; top:40px; left:0; width:max-content; min-width:120px; max-height:180px; overflow-y:auto; background:#1e293b; border:1px solid #475569; border-radius:6px; padding:8px; z-index:99999; box-shadow:0 15px 30px rgba(0,0,0,0.8);">
+                        <div id="${id}-menu" style="display:none; position:absolute; top:40px; left:0; width:max-content; min-width:120px; max-height:180px; overflow-y:auto; background:rgba(15, 23, 42, 0.95); backdrop-filter:blur(10px); border:1px solid #39ff14; border-radius:6px; padding:8px; z-index:99999; box-shadow:0 15px 30px rgba(0,0,0,0.8);">
                             ${chks}
                         </div>
                     </div>`;
                 };
 
-                // 🔥 HTML MODIFICADO: Ahora f-dates usa el menú tiqueable 🔥
+                // 🔥 HTML MODIFICADO: Fechas Completas y Botón de Lógica Hacker 🔥
                 filterBar.innerHTML = `
                     ${createMultiCheckHtml('f-app', 'App (Multi)', uniqueApps)}
                     ${createMultiCheckHtml('f-days', 'Días (Multi)', uniqueDays)}
                     <div style="width:1px; height:40px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
-                    ${createMultiCheckHtml('f-dates', 'Fechas (Top 5)', top5Dates)}
+                    ${createMultiCheckHtml('f-dates', 'Fechas (Multi)', uniqueDates)}
                     <div style="width:1px; height:40px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
                     <div style="display:flex; flex-direction:column; gap:2px;"><span style="font-size:10px;color:#9ca3af;">Pago?</span><select id="f-repay" style="${baseInputStyle} height:24px;"><option value="ALL">Todos</option><option value="Si">Si</option><option value="No">No</option></select></div>
+                    <div style="width:1px; height:40px; background:rgba(255,255,255,0.2); margin:0 5px;"></div>
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <span style="font-size:10px;color:#9ca3af;">Lógica Filtro</span>
+                        <button id="btn-toggle-logica" style="height:24px; background:rgba(14,165,233,0.1); border:1px solid #0ea5e9; color:#0ea5e9; border-radius:4px; font-family:'Courier New', Courier, monospace; font-size:11px; font-weight:bold; cursor:pointer; padding:0 8px; transition:0.2s; outline:none;">[FLEXIBLE]</button>
+                    </div>
                 `;
 
                 // 🔥 LÓGICA VISUAL: Manejo de clics en los nuevos desplegables
@@ -697,41 +724,108 @@
                     document.querySelectorAll('.crm-dropdown-container > div:last-child').forEach(m => m.style.display = 'none');
                 });
 
-                // 🔥 LÓGICA DE FILTRADO ACTUALIZADA (AHORA ES SUMATORIA / OR) 🔥
+                // 🔥 LÓGICA DE FILTRADO DUAL CON BUSCADOR MASIVO (EXCEL) 🔥
                 const applyAllFilters = () => {
                     const selectedApps = Array.from(document.querySelectorAll('.f-app-chk:checked')).map(cb => cb.value);
                     const selectedDays = Array.from(document.querySelectorAll('.f-days-chk:checked')).map(cb => cb.value);
                     const selectedDates = Array.from(document.querySelectorAll('.f-dates-chk:checked')).map(cb => cb.value.toLowerCase());
-                    
                     const fRepay = document.getElementById('f-repay') ? document.getElementById('f-repay').value : 'ALL';
+                    
+                    const searchText = (document.getElementById('f-search-text')?.value || '').toLowerCase().trim();
+                    const isEstricto = localStorage.getItem('CRM_FILTRO_ESTRICTO') === 'true';
 
                     window.appState.filteredData = window.appState.rawData.filter(c => {
-                        // Si TODOS los filtros están en "Todos" o vacíos, mostramos toda la cartera original
+                        
+                        // 1. 🔥 NUEVA BARRERA: LECTURA INTELIGENTE DE EXCEL (IGNORANDO PREFIJOS) 🔥
+                        if (searchText !== '') {
+                            // Detectamos el país actual para saber cuántos dígitos reales tiene un teléfono local[cite: 2]
+                            const currentCrm = CONFIG_CRMS.find(cfg => cfg.domains.some(d => window.appState.baseUrl.includes(d))) || { digits: 10 };
+                            const digitosLocales = currentCrm.digits;
+
+                            // Separamos lo pegado y procesamos cada término
+                            const terminosBuscados = searchText.split(/[\s,;\n\t]+/).filter(Boolean).map(term => {
+                                const soloNumeros = term.replace(/[^0-9]/g, '');
+                                // Si pegaron un teléfono con prefijo de país, le cortamos el prefijo quedándonos con los últimos N dígitos locales
+                                if (soloNumeros.length >= digitosLocales && soloNumeros.length <= digitosLocales + 4) {
+                                    return soloNumeros.slice(-digitosLocales);
+                                }
+                                return term.toLowerCase(); // Si es texto (nombres, IDs) lo dejamos intacto
+                            });
+                            
+                            // Limpiamos también el teléfono del CRM (Por si el CRM ya lo trae con prefijo guardado)
+                            const cPhoneRaw = String(c.phone || '').replace(/[^0-9]/g, '');
+                            const cPhoneClean = cPhoneRaw.length >= digitosLocales ? cPhoneRaw.slice(-digitosLocales) : cPhoneRaw;
+                            
+                            // Preparamos los datos del cliente a comparar
+                            const cInfo = `${c.userId || ''} ${c.repayId || ''} ${c.orderId || ''} ${cPhoneClean} ${String(c.userName || '').toLowerCase()}`;
+                            
+                            // ¿El cliente contiene ALGUNO de los términos limpios de la lista pegada?
+                            const coincide = terminosBuscados.some(term => cInfo.includes(term));
+                            
+                            if (!coincide) return false; // Se descarta si no está en la lista pegada
+                        }
+
+                        // Si pasa el buscador de texto y TODOS los demás filtros están limpios, lo mostramos
                         if (selectedApps.length === 0 && selectedDays.length === 0 && selectedDates.length === 0 && fRepay === 'ALL') {
                             return true;
                         }
 
-                        // 1. Evaluamos App
+                        // 2. 🔥 EVALUACIÓN DE LOS SELECTORES MÚLTIPLES 🔥
                         const cApp = c.appName || c.productName;
-                        const matchApp = selectedApps.length > 0 && selectedApps.includes(cApp);
+                        const matchApp = selectedApps.includes(cApp);
                         
-                        // 2. Evaluamos Días
-                        const matchDay = selectedDays.length > 0 && selectedDays.includes(String(c.overdueDay));
+                        const matchDay = selectedDays.includes(String(c.overdueDay));
+                        const matchRepay = (c.isRepay ? "Si" : "No") === fRepay;
                         
-                        // 3. Evaluamos Pago
-                        const matchRepay = fRepay !== 'ALL' && (c.isRepay ? "Si" : "No") === fRepay;
-                        
-                        // 4. Evaluamos Fechas
                         const openT = (c.openTime || "").toLowerCase();
-                        const matchDate = selectedDates.length > 0 && selectedDates.some(date => openT.includes(date));
-                        
-                        // 🔥 SUMATORIA (Lógica OR): Si cumple AL MENOS UNO de los filtros, se incluye en la lista.
-                        // Al usar .filter() aseguramos que, aunque cumpla 2 o más filtros a la vez, se mostrará UNA SOLA VEZ.
-                        return matchApp || matchDay || matchRepay || matchDate;
+                        const matchDate = selectedDates.some(date => openT.includes(date));
+
+                        if (isEstricto) {
+                            // MODO ESTRICTO (EMBUDO / AND) - Solo pasa si cumple TODAS las categorías seleccionadas
+                            let pasaApp = selectedApps.length > 0 ? matchApp : true;
+                            let pasaDay = selectedDays.length > 0 ? matchDay : true;
+                            let pasaRepay = fRepay !== 'ALL' ? matchRepay : true;
+                            let pasaDate = selectedDates.length > 0 ? matchDate : true;
+                            return pasaApp && pasaDay && pasaRepay && pasaDate;
+                        } else {
+                            // MODO FLEXIBLE (SUMA / OR) - Pasa si cumple AL MENOS UNA de las opciones marcadas
+                            return (selectedApps.length > 0 && matchApp) || 
+                                   (selectedDays.length > 0 && matchDay) || 
+                                   (fRepay !== 'ALL' && matchRepay) || 
+                                   (selectedDates.length > 0 && matchDate);
+                        }
                     });
                     
                     window.appState.currentPage = 1; 
                     renderTable();
+                };
+
+                // 🔥 CONFIGURACIÓN VISUAL Y MEMORIA DEL BOTÓN LÓGICA 🔥
+                // Buscamos dentro de filterBar porque aún no se inyecta al DOM global
+                const btnLogica = filterBar.querySelector('#btn-toggle-logica');
+                const updateLogicaUI = () => {
+                    const isEstricto = localStorage.getItem('CRM_FILTRO_ESTRICTO') === 'true';
+                    if (isEstricto) {
+                        btnLogica.innerText = "[ESTRICTO]";
+                        btnLogica.style.color = "#ef4444";
+                        btnLogica.style.borderColor = "#ef4444";
+                        btnLogica.style.background = "rgba(239,68,68,0.1)";
+                        btnLogica.style.boxShadow = "0 0 10px rgba(239,68,68,0.3)";
+                    } else {
+                        btnLogica.innerText = "[FLEXIBLE]";
+                        btnLogica.style.color = "#0ea5e9";
+                        btnLogica.style.borderColor = "#0ea5e9";
+                        btnLogica.style.background = "rgba(14,165,233,0.1)";
+                        btnLogica.style.boxShadow = "none";
+                    }
+                };
+                updateLogicaUI(); // Carga el color correcto al abrir la terminal
+
+                btnLogica.onclick = () => {
+                    const isEstricto = localStorage.getItem('CRM_FILTRO_ESTRICTO') === 'true';
+                    localStorage.setItem('CRM_FILTRO_ESTRICTO', !isEstricto);
+                    updateLogicaUI();
+                    applyAllFilters();
                 };
 
                 // Listeners nativos para el select de "Pago?"
@@ -819,9 +913,10 @@
                 const btnAbrirMasivo = document.getElementById('btn-abrir-masivo');
                 if (btnAbrirMasivo && !window.appState.isExecuting && !window.appState.isPaused) btnAbrirMasivo.innerHTML = `[> ABRIR CLIENTES (${dataToShow.length})]`;
 
-                // 🔥 ENCABEZADO STICKY (SIEMPRE VISIBLE AL BAJAR SCROLL) 🔥
+                // 🔥 ENCABEZADO STICKY CON CHECKBOX MAESTRO 🔥
                 table.innerHTML = `<thead style="position: sticky; top: 0; z-index: 10; background: rgba(10, 15, 30, 0.95); box-shadow: 0 2px 10px rgba(0,0,0,0.8); backdrop-filter: blur(5px);">
                 <tr style="border-bottom:1px solid rgba(57,255,20,0.3);">
+                    <th style="padding:6px; text-align:center; width: 30px;"><input type="checkbox" id="chk-all-rows" checked style="cursor:pointer; accent-color:#39ff14; transform: scale(1.2);" title="Seleccionar / Deseleccionar todo"></th>
                     <th style="padding:6px; color:#e2e8f0;">ID</th><th style="padding:6px; color:#e2e8f0;">Cobrador</th><th style="padding:6px; color:#e2e8f0;">Etapa</th><th style="padding:6px; color:#e2e8f0;">Cliente</th>
                     <th style="padding:6px; color:#e2e8f0;">Teléfono</th><th style="padding:6px; color:#e2e8f0;">App</th><th style="padding:6px;color:#fbbf24;">Producto</th><th style="padding:6px; color:#e2e8f0;">Atraso</th>
                     <th style="padding:6px; color:#e2e8f0;">Pago?</th><th style="padding:6px; color:#e2e8f0;">Fecha de Conexión</th><th style="padding:6px;text-align:center; color:#e2e8f0;">Acción</th>
@@ -834,7 +929,8 @@
                         
                         const appColor = window.getAppColor ? window.getAppColor(c.appName) : '#9ca3af';
 
-                        return `<tr style="${currentIds[c.userId] > 1 ? 'background:rgba(239,68,68,0.15)' : 'border-bottom:1px solid rgba(255,255,255,0.05)'}">
+                        return `<tr class="fila-crm-datos" style="${currentIds[c.userId] > 1 ? 'background:rgba(239,68,68,0.15)' : 'border-bottom:1px solid rgba(255,255,255,0.05)'}">
+                            <td style="padding:4px; text-align:center;"><input type="checkbox" class="chk-row" data-uid="${c.userId}" data-tid="${c.taskId}" checked style="cursor:pointer; accent-color:#39ff14; transform: scale(1.1);"></td>
                             <td style="padding:4px;color:${currentIds[c.userId] > 1 ? '#fca5a5' : '#93c5fd'}"><span class="copy-id" data-id="${c.userId}" style="cursor:pointer;" title="Doble clic para copiar">${c.userId}</span></td>
                             <td style="padding:4px;">${c.urgeUserName||'N/A'}</td><td style="padding:4px;">${c.stageName||'N/A'}</td>
                             <td style="padding:4px;">${c.userName||'N/A'}</td><td style="padding:4px;">${c.phone||'N/A'}</td>
@@ -846,14 +942,46 @@
                             </td>
                         </tr>`;
                     }).join('') + `</tbody>`;
+                    
+                // 🔥 LOGICA DE SELECCION MULTIPLE AL RENDERIZAR 🔥
+                setTimeout(() => {
+                    const chkAll = document.getElementById('chk-all-rows');
+                    const chkRows = document.querySelectorAll('.chk-row');
+                    
+                    const updateContadores = () => {
+                        const seleccionados = document.querySelectorAll('.chk-row:checked').length;
+                        if (btnEjec && !window.appState.isExecuting && !window.appState.isPaused) btnEjec.innerHTML = `[> SEGUIMIENTO MASIVO (${seleccionados})]`;
+                        if (btnAbrirMasivo && !window.appState.isExecuting && !window.appState.isPaused) btnAbrirMasivo.innerHTML = `[> ABRIR CLIENTES (${seleccionados})]`;
+                    };
+
+                    if (chkAll) {
+                        chkAll.addEventListener('change', (e) => {
+                            const isChecked = e.target.checked;
+                            chkRows.forEach(chk => chk.checked = isChecked);
+                            updateContadores(); // Refresca los números de los botones
+                        });
+                    }
+
+                    chkRows.forEach(chk => {
+                        chk.addEventListener('change', () => {
+                            // Si desmarcas uno, se desmarca el "Maestro". Si los marcas todos, se vuelve a marcar.
+                            if (chkAll) chkAll.checked = document.querySelectorAll('.chk-row:not(:checked)').length === 0;
+                            updateContadores();
+                        });
+                    });
+                }, 50);
             }
 
-            document.body.addEventListener('click', async function(e) {
+            // 🔥 ASIGNAMOS EL EVENTO AL PANEL (NO AL BODY) PARA EVITAR CLICS FANTASMAS 🔥
+            panel.addEventListener('click', async function(e) {
                 if(e.target && e.target.id == 'btn-prev') { if(window.appState.currentPage > 1) { window.appState.currentPage--; renderTable(); } }
                 if(e.target && e.target.id == 'btn-next') { if(window.appState.currentPage < Math.ceil(window.appState.filteredData.length / window.appState.pageSize)) { window.appState.currentPage++; renderTable(); } }
                 
                 // 🔥 ABRIR INDIVIDUAL EN SEGUNDO PLANO 🔥
                 if(e.target && e.target.classList.contains('btn-abrir-fila')) {
+                    // 🛡️ Seguro Anti-Doble Clic
+                    if(e.target.innerText === "⏳") return; 
+                    
                     const uid = e.target.getAttribute('data-uid'); const tid = e.target.getAttribute('data-tid');
                     const c = window.appState.filteredData.find(x => String(x.userId) === String(uid) && String(x.taskId) === String(tid));
                     if (c) {
@@ -920,16 +1048,107 @@
             }
             rightCol.appendChild(paidWrap);
 
+            // 🔥 NUEVO PANEL: BUSCADOR EXCEL PERSONALIZADO (MUDADO A LA DERECHA) 🔥
+            const searchWrap = document.createElement('div');
+            Object.assign(searchWrap.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: '1px solid rgba(14,165,233,0.4)', display: 'flex', flexDirection: 'column', gap: '8px' });
+            
+            searchWrap.innerHTML = `
+                <div style="color:#0ea5e9; font-size:11px; font-weight:bold; text-transform:uppercase; border-bottom:1px solid rgba(14,165,233,0.3); padding-bottom:4px;">Filtro Excel / IDs</div>
+                <textarea id="f-search-text" placeholder="Pega teléfonos o IDs..." style="width: 100%; height: 50px; max-height: 150px; background: rgba(0,0,0,0.5); color: #0ea5e9; border: 1px dotted rgba(14,165,233,0.4); border-radius: 4px; padding: 6px; font-size: 11px; outline: none; resize: none; font-family: 'Courier New', Courier, monospace; overflow-y: auto; box-sizing: border-box; box-shadow: inset 0 0 5px rgba(14,165,233,0.05);"></textarea>
+                <button id="btn-limpiar-search" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer; font-family: 'Courier New', Courier, monospace; font-weight: bold; padding: 4px; font-size: 10px; transition: 0.2s; outline: none;">[X] LIMPIAR FILTRO</button>
+            `;
+            rightCol.appendChild(searchWrap);
+
+            // Truco para disparar el filtro desde afuera del bloque original
+            const dispararFiltro = () => {
+                const selectRepay = document.getElementById('f-repay');
+                if(selectRepay) selectRepay.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+
+            // Eventos del nuevo buscador en columna derecha
+            setTimeout(() => {
+                const searchInput = document.getElementById('f-search-text');
+                const btnLimpiar = document.getElementById('btn-limpiar-search');
+
+                if (searchInput) {
+                    searchInput.addEventListener('input', function() {
+                        // Se estira o vuelve a tamaño base según haya texto
+                        if (this.value.trim() === '') {
+                            this.style.height = '50px';
+                        } else {
+                            this.style.height = 'auto';
+                            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+                        }
+                        dispararFiltro();
+                    });
+
+                    btnLimpiar.onmouseenter = () => { btnLimpiar.style.background = '#ef4444'; btnLimpiar.style.color = '#000'; };
+                    btnLimpiar.onmouseleave = () => { btnLimpiar.style.background = 'rgba(239,68,68,0.1)'; btnLimpiar.style.color = '#ef4444'; };
+
+                    btnLimpiar.onclick = (e) => {
+                        e.stopPropagation();
+                        searchInput.value = '';
+                        searchInput.style.height = '50px';
+                        dispararFiltro();
+                    };
+                }
+            }, 50);
+
             bodyContainer.append(leftCol, rightCol); panel.appendChild(bodyContainer); document.body.appendChild(panel); renderTable();
 
             async function runMassFollowUp(mensajeClave) {
                 if(window.appState.isExecuting) return alert("Proceso en ejecución.");
-                let targetData = window.appState.pageSize === 'ALL' ? window.appState.filteredData : window.appState.filteredData.slice((window.appState.currentPage - 1) * window.appState.pageSize, window.appState.currentPage * window.appState.pageSize);
-                if(targetData.length === 0) return alert("No hay clientes en la vista actual.");
+                
+                // 🔥 VALIDAR DESTINATARIOS SELECCIONADOS 🔥
+                const isTitular = document.getElementById('chk-target-titular')?.checked;
+                const isRef1 = document.getElementById('chk-target-ref1')?.checked;
+                const isRef2 = document.getElementById('chk-target-ref2')?.checked;
+                if (!isTitular && !isRef1 && !isRef2) return alert("Selecciona al menos un destinatario (Titular, Ref 1 o Ref 2) en la barra superior.");
+
+                let currentViewData = window.appState.pageSize === 'ALL' ? window.appState.filteredData : window.appState.filteredData.slice((window.appState.currentPage - 1) * window.appState.pageSize, window.appState.currentPage * window.appState.pageSize);
+                
+                // 🔥 FILTRAR SOLO LOS TIQUEADOS EN LA UI 🔥
+                const chkActivos = Array.from(document.querySelectorAll('.chk-row:checked'));
+                const targetData = currentViewData.filter(c => 
+                    chkActivos.some(chk => chk.getAttribute('data-uid') === String(c.userId) && chk.getAttribute('data-tid') === String(c.taskId))
+                );
+
+                if(targetData.length === 0) return alert("No hay clientes seleccionados (tiqueados).");
                 
                 // Usamos el nuevo modal hacker
-                const confirmado = await mostrarConfirmacionHacker(`¿Ejecutar masivo a <b>${targetData.length}</b> clientes visibles?<br><span style="color:#39ff14; font-weight:bold; margin-top:8px; display:block;">Mensaje: "${mensajeClave}"</span>`);
+                let dText = [];
+                if(isTitular) dText.push("Titular"); if(isRef1) dText.push("Ref 1"); if(isRef2) dText.push("Ref 2");
+                const confirmado = await mostrarConfirmacionHacker(`¿Ejecutar masivo a <b>${targetData.length}</b> clientes seleccionados?<br><span style="color:#fbbf24; font-size:12px;">Destinatarios: ${dText.join(', ')}</span><br><span style="color:#39ff14; font-weight:bold; margin-top:8px; display:block;">Mensaje: "${mensajeClave}"</span>`);
                 if(!confirmado) return;
+
+                // ⚙️ 1. OBTENER HORA EXACTA DEL SERVIDOR API (VERDAD ABSOLUTA) ⚙️
+                let hoyServidor = "";
+                let tz = 'America/Mexico_City';
+                if (window.appState.baseUrl.includes('co-crm')) tz = 'America/Bogota';
+                else if (window.appState.baseUrl.includes('cl-crm')) tz = 'America/Santiago';
+                else if (window.appState.baseUrl.includes('pe-crm')) tz = 'America/Lima';
+                else if (window.appState.baseUrl.includes('creddireto')) tz = 'America/Sao_Paulo';
+                else if (window.appState.baseUrl.includes('rayodinero')) tz = 'America/Argentina/Buenos_Aires';
+
+                try {
+                    const timeResp = await fetch(`${window.appState.baseUrl}/api/manage/get/time?v=${Date.now()}`, { 
+                        method: 'GET', headers: { 'Authentication': window.appState.token } 
+                    });
+                    const timeData = await timeResp.json();
+                    
+                    if (timeData && timeData.data) {
+                        if (typeof timeData.data === 'string' && timeData.data.includes('-')) {
+                            hoyServidor = timeData.data.split(' ')[0]; // Extrae "YYYY-MM-DD" si es texto
+                        } else {
+                            // Convierte el Timestamp del servidor a YYYY-MM-DD
+                            hoyServidor = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Number(timeData.data)));
+                        }
+                    }
+                } catch(e) { console.warn("Fallo API time, usando respaldo."); }
+
+                if (!hoyServidor || hoyServidor.length < 10) {
+                    hoyServidor = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+                }
 
                 // ⚙️ Configuración Inicial de UI y Estado
                 window.appState.isExecuting = true;
@@ -942,24 +1161,11 @@
 
                 const VELOCIDAD_MS = 100; 
                 
-                // 🔥 CORRECCIÓN EXACTA DE ZONA HORARIA POR PAÍS 🔥
-                let tz = 'America/La_Paz'; // Zona por defecto
-                if (window.appState.baseUrl.includes('co-crm')) tz = 'America/Bogota';
-                else if (window.appState.baseUrl.includes('mx-')) tz = 'America/Mexico_City';
-                else if (window.appState.baseUrl.includes('cl-crm')) tz = 'America/Santiago';
-                else if (window.appState.baseUrl.includes('pe-crm')) tz = 'America/Lima';
-                else if (window.appState.baseUrl.includes('creddireto')) tz = 'America/Sao_Paulo';
-                else if (window.appState.baseUrl.includes('rayodinero')) tz = 'America/Argentina/Buenos_Aires';
-
-                // Convierte la fecha actual al formato YYYY-MM-DD usando la hora exacta del servidor
-                const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
-                const hoyLocalCRM = formatter.format(new Date()); 
-                
                 const processedIds = new Set(); 
                 let successCount = 0, skipCount = 0, errorCount = 0;
                 
                 logMsg(`🚀 Iniciando para ${targetData.length} clientes...`, '#fbbf24');
-                logMsg(`🌍 Huso Horario: ${tz} (Hoy: ${hoyLocalCRM})`, '#9ca3af'); // Para que veas qué hora está leyendo
+                logMsg(`🌍 Día Oficial del CRM (API): ${hoyServidor}`, '#9ca3af'); 
 
                 for (let i = 0; i < targetData.length; i++) {
                     // ⏸️ 1. Control de STOP y PAUSA
@@ -976,10 +1182,9 @@
                     if (!c.userId || processedIds.has(c.userId)) { skipCount++; continue; }
                     processedIds.add(c.userId);
                     
-                    let sentToday = false;
+                    // 🛡️ 3. CHEQUEO DEL HISTORIAL INDIVIDUALIZADO (Titular, Ref1, Ref2)
+                    let sentTitular = false, sentRef1 = false, sentRef2 = false;
                     
-                    // 🛡️ 3. CHEQUEO DEL HISTORIAL EN EL CRM (Precisión de País)
-                    let foundExactDate = "";
                     try {
                         const hResp = await fetch(`${window.appState.baseUrl}/api/manage/urge/task/getFollowPage?v=${Date.now()}`, { 
                             method: 'POST', 
@@ -989,16 +1194,21 @@
                         const hData = await hResp.json();
                         if(hData.code === 401 || hData.code === 403) { alert("Token expirado."); location.reload(); return; }
                         
-                        const registroPrevio = (hData.data?.records || []).find(r => {
-                            const fechaHistorial = r.createTime || r.followTime || r.updateTime || "";
+                        (hData.data?.records || []).forEach(r => {
+                            const fechaHoraCompleta = r.createTime || r.followTime || r.updateTime || "";
+                            // Cortamos para quedarnos SOLO con "YYYY-MM-DD" e ignorar la hora
+                            const fechaSoloDia = fechaHoraCompleta.split(' ')[0]; 
+                            
                             const notaHistorial = (r.note || r.remark || r.content || "").toLowerCase();
-                            return fechaHistorial.includes(hoyLocalCRM) && notaHistorial.includes(mensajeClave.toLowerCase());
+                            const target = String(r.followTarget || "0"); 
+                            
+                            // 🔥 VERDAD ABSOLUTA: El día del historial === El día del Servidor API
+                            if (fechaSoloDia === hoyServidor && notaHistorial.includes(mensajeClave.toLowerCase())) {
+                                if (target === "0") sentTitular = true;
+                                else if (target === "1") sentRef1 = true;
+                                else if (target === "2") sentRef2 = true;
+                            }
                         });
-
-                        if (registroPrevio) {
-                            sentToday = true;
-                            foundExactDate = registroPrevio.createTime || registroPrevio.followTime || registroPrevio.updateTime || "Desconocida";
-                        }
                     } catch (e) {
                         console.log("Error consultando historial", e);
                     }
@@ -1006,32 +1216,91 @@
                     const appColor = window.getAppColor ? window.getAppColor(c.appName) : '#9ca3af';
                     const coloredAppProd = `<span style="color:${appColor}">[${c.appName || 'N/A'} - ${c.productName || 'N/A'}]</span>`;
 
-                    if (sentToday) { 
-                        // 🔥 OMITIDO AMARILLO RESALTADO 🔥
-                        logMsg(`[-] <span style="color:#fbbf24; font-weight:900; text-shadow:0 0 5px rgba(251,191,36,0.6);">OMITIDO [${i+1}/${targetData.length}]:</span> ${c.userName} ${coloredAppProd} | Registrado: ${foundExactDate}`, '#9ca3af'); 
-                        skipCount++; 
-                        continue; 
+                    // 📨 4. OBTENER TELÉFONOS DE REFERENCIAS (MEJORADO)
+                    let ref1Phone = null, ref2Phone = null;
+
+                    if (isRef1 || isRef2) {
+                        try {
+                            const rInfo = await fetch(`${window.appState.baseUrl}/api/manage/urge/task/getTaskInfo/${c.taskId}/${c.orderId}?v=${Date.now()}`, { headers: { 'Authentication': window.appState.token } });
+                            const dInfo = await rInfo.json();
+                            const detalle = dInfo.data || {};
+                            
+                            let arrayContactos = detalle.contacts || detalle.contactList || detalle.linkmanList || [];
+                            if (arrayContactos.length > 0) {
+                                ref1Phone = String(arrayContactos[0].phoneNumber || arrayContactos[0].phone || arrayContactos[0].contactPhone || "");
+                            }
+                            if (arrayContactos.length > 1) {
+                                ref2Phone = String(arrayContactos[1].phoneNumber || arrayContactos[1].phone || arrayContactos[1].contactPhone || "");
+                            }
+                        } catch(e) {
+                            console.warn("Error extrayendo referencias para", c.userName);
+                        }
                     }
 
-                    // 📨 4. ENVÍO DEL SEGUIMIENTO
-                    try {
-                        const sResp = await fetch(`${window.appState.baseUrl}/api/manage/urge/task/addFollow?v=${Date.now()}`, { 
-                            method: 'POST', 
-                            headers: { 'Authentication': window.appState.token, 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ phone: c.phone, taskId: c.taskId, followTarget: "0", followResult: "3", ptpTime: null, note: mensajeClave, score: null }) 
-                        });
-                        const sData = await sResp.json();
-                        if (sData.code === 200 || sData.success) { 
-                            const exactNow = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()).replace(',', '');
-                            logMsg(`[+] [${i+1}/${targetData.length}] OK: ${c.userName} ${coloredAppProd} | Envío: "${mensajeClave}" | ${exactNow}`, '#39ff14'); 
-                            successCount++; 
-                        } else { 
-                            logMsg(`[x] [${i+1}/${targetData.length}] Falló: ${c.userName} ${coloredAppProd}`, '#ef4444'); 
+                    // 📨 5. CONSTRUIR COLA DE ENVÍO Y MANEJAR OMITIDOS POR SEPARADO
+                    const targetsToSend = [];
+                    
+                    if (isTitular) {
+                        if (sentTitular) {
+                            logMsg(`[-] <span style="color:#fbbf24; font-weight:bold;">OMITIDO [TITULAR]</span>: ${c.userName} ${coloredAppProd} | Ya enviado`, '#9ca3af');
+                            skipCount++;
+                        } else {
+                            targetsToSend.push({ followTarget: "0", phone: c.phone || "", name: "TITULAR", color: "#39ff14" });
+                        }
+                    }
+                    
+                    if (isRef1) {
+                        if (sentRef1) {
+                            logMsg(`[-] <span style="color:#fbbf24; font-weight:bold;">OMITIDO [REF 1]</span>: ${c.userName} ${coloredAppProd} | Ya enviado`, '#9ca3af');
+                            skipCount++;
+                        } else {
+                            targetsToSend.push({ followTarget: "1", phone: ref1Phone, name: "REF 1", color: "#0ea5e9" });
+                        }
+                    }
+                    
+                    if (isRef2) {
+                        if (sentRef2) {
+                            logMsg(`[-] <span style="color:#fbbf24; font-weight:bold;">OMITIDO [REF 2]</span>: ${c.userName} ${coloredAppProd} | Ya enviado`, '#9ca3af');
+                            skipCount++;
+                        } else {
+                            targetsToSend.push({ followTarget: "2", phone: ref2Phone, name: "REF 2", color: "#d946ef" });
+                        }
+                    }
+
+                    // Si no hay nadie a quien enviar en este cliente, saltamos al siguiente
+                    if (targetsToSend.length === 0) continue;
+
+                    // 📨 6. EJECUTAR EL ENVÍO A LOS DESTINATARIOS MARCADOS
+                    for (let t of targetsToSend) {
+                        // Limpiar el teléfono por si viene vacío, undefined o null
+                        let telLimpio = t.phone ? String(t.phone).replace(/[^0-9]/g, '') : '';
+                        
+                        if (!telLimpio || telLimpio === "undefined" || telLimpio.length < 5) {
+                            logMsg(`[-] [${i+1}/${targetData.length}] Omitido <span style="color:${t.color};">[${t.name}]</span>: ${c.userName} | Sin número`, '#9ca3af');
+                            skipCount++;
+                            continue;
+                        }
+                        
+                        try {
+                            const sResp = await fetch(`${window.appState.baseUrl}/api/manage/urge/task/addFollow?v=${Date.now()}`, { 
+                                method: 'POST', 
+                                headers: { 'Authentication': window.appState.token, 'Content-Type': 'application/json' }, 
+                                body: JSON.stringify({ phone: telLimpio, taskId: c.taskId, followTarget: t.followTarget, followResult: "3", ptpTime: null, note: mensajeClave, score: null }) 
+                            });
+                            const sData = await sResp.json();
+                            if (sData.code === 200 || sData.success) { 
+                                const exactNow = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()).replace(',', '');
+                                logMsg(`[+] [${i+1}/${targetData.length}] OK <span style="color:${t.color};">[${t.name}]</span>: ${c.userName} | ${exactNow}`, '#39ff14'); 
+                                successCount++; 
+                            } else { 
+                                logMsg(`[x] [${i+1}/${targetData.length}] Falló <span style="color:${t.color};">[${t.name}]</span>: ${c.userName}`, '#ef4444'); 
+                                errorCount++; 
+                            }
+                        } catch (e) { 
+                            logMsg(`[x] [${i+1}/${targetData.length}] Error red <span style="color:${t.color};">[${t.name}]</span>: ${c.userName}`, '#ef4444'); 
                             errorCount++; 
                         }
-                    } catch (e) { 
-                        logMsg(`[x] [${i+1}/${targetData.length}] Error red: ${c.userName}`, '#ef4444'); 
-                        errorCount++; 
+                        await new Promise(r => setTimeout(r, 150)); // Pausa breve entre envíos al mismo cliente (Evita baneo)
                     }
                     
                     await new Promise(r => setTimeout(r, VELOCIDAD_MS));
