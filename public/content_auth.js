@@ -772,6 +772,10 @@
         'server-diego': {
             script: 'https://script.google.com/macros/s/AKfycbzsH7WaeIkOW9v5Nh3zTBX1T5KXx39yHCT892H_voYc_yktm1oifUY8VeGOTvdfmKgf/exec',
             firebase: 'https://notificaciondiegos1-default-rtdb.firebaseio.com/alerta_activa.json'
+        },
+        'server-gr-s1': {
+            script: 'https://script.google.com/macros/s/AKfycbyoz-hQocwhT6YlNqW0BNK-bIzNAlCbhlYSp9Geq5_Mx8ldVpLlfzo1YP8uR3gr0LnF/exec',
+            firebase: 'https://notificacionchru-default-rtdb.firebaseio.com/alerta_activa.json'
         }
     };
 
