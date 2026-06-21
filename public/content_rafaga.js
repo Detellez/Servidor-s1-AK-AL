@@ -546,6 +546,24 @@
             let matchApp = appsSeleccionadas.length === 0 || appsSeleccionadas.includes(c.app);
             if (!matchApp) return false; 
             
+            // 🔥 NUEVO MOTOR DE BÚSQUEDA Y PEGADO EXCEL 🔥
+            const textoBusqueda = (document.getElementById('input-busqueda-texto')?.value || '').toLowerCase().trim();
+            if (textoBusqueda !== '') {
+                // Preparamos los datos del cliente unidos en un solo string
+                const stringCliente = `${c.idPlan} ${c.telefono} ${c.nombre} ${c.app} ${c.correo} ${c.producto}`.toLowerCase();
+                
+                // 1. Si escribes un nombre/correo corto -> ¿El cliente contiene ese texto?
+                const matchDirecto = stringCliente.includes(textoBusqueda);
+                
+                // 2. Si pegas una fila larga de Excel -> ¿La fila pegada contiene el ID o el Teléfono del cliente?
+                const matchInverso = textoBusqueda.includes(String(c.idPlan).toLowerCase()) || 
+                                     textoBusqueda.includes(String(c.telefono).replace('+', '').toLowerCase()) ||
+                                     (c.correo && c.correo.trim() !== '' && textoBusqueda.includes(String(c.correo).toLowerCase()));
+                
+                // Si no coincide ni directa ni inversamente, descartamos la fila
+                if (!matchDirecto && !matchInverso) return false; 
+            }
+
             let esRepay = String(c.isRepay).toLowerCase() === 'true';
             let txtRepay = esRepay ? 'Si' : 'No';
             const dMora = c.diasMora ? String(c.diasMora).trim() : '';
@@ -556,11 +574,24 @@
 
             if (!tieneFechas && !tieneMoras && !tieneRepay) return true; 
 
-            const coincideFecha = tieneFechas && fechasSeleccionadas.includes(c.fechaConexion);
-            const coincideMora = tieneMoras && morasSeleccionadas.includes(dMora);
-            const coincideRepay = tieneRepay && repaySeleccionadas.includes(txtRepay);
+            const coincideFecha = fechasSeleccionadas.includes(c.fechaConexion);
+            const coincideMora = morasSeleccionadas.includes(dMora);
+            const coincideRepay = repaySeleccionadas.includes(txtRepay);
 
-            return coincideFecha || coincideMora || coincideRepay; 
+            const isEstricto = localStorage.getItem('RAFAGA_FILTRO_ESTRICTO') === 'true';
+
+            if (isEstricto) {
+                // MODO ESTRICTO (EMBUDO - AND): Si la categoría tiene algo seleccionado, TIENE que coincidir.
+                let pasaFecha = tieneFechas ? coincideFecha : true;
+                let pasaMora = tieneMoras ? coincideMora : true;
+                let pasaRepay = tieneRepay ? coincideRepay : true;
+                return pasaFecha && pasaMora && pasaRepay;
+            } else {
+                // MODO FLEXIBLE (SUMA - OR): Basta con que coincida con una de las categorías activas.
+                return (tieneFechas && coincideFecha) || 
+                       (tieneMoras && coincideMora) || 
+                       (tieneRepay && coincideRepay);
+            }
         });
         filtrado.sort((a, b) => (parseInt(a.diasMora) || 0) - (parseInt(b.diasMora) || 0));
         return filtrado;
@@ -697,8 +728,11 @@
                             const pass = prompt("🔐 Acceso de Administrador para editar Token:");
                             if (pass === "1234") {
                                 inputToken.readOnly = false;
-                                inputToken.style.background = "#0f172a";
-                                inputToken.style.border = "1px solid #34d399";
+                                inputToken.style.filter = "none"; // Quita el borroso
+                                inputToken.style.opacity = "1";
+                                inputToken.style.background = "rgba(15, 23, 42, 0.8)";
+                                inputToken.style.border = "1px solid rgba(59, 130, 246, 0.5)";
+                                inputToken.style.borderRadius = "4px";
                                 inputToken.style.cursor = "text";
                                 inputToken.style.userSelect = "text";
                                 if(escudo) escudo.style.display = "none"; 
@@ -741,9 +775,10 @@
                 header.style.cursor = 'grab'; 
             }, true);
 
+            // Reemplaza los estilos del toolbar
             const toolbar = document.createElement('div');
             Object.assign(toolbar.style, {
-                padding: '8px 20px', borderBottom: '1px solid #334155', backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                padding: '10px 24px', borderBottom: '1px solid rgba(255,255,255,0.03)', backgroundColor: 'transparent',
                 display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap', position: 'relative' 
             });
 
@@ -775,9 +810,33 @@
                     </span>
                 </div>
 
-                <div id="panel-filtro-plus" style="position: absolute; top: 100%; left: 20px; background: rgba(15, 23, 42, 0.98); border: 1px solid #8b5cf6; border-radius: 8px; padding: 15px; z-index: 3000; display: none; flex-direction: column; gap: 15px; min-width: 300px; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+                <button type="button" id="btn-buscar-texto" style="background: #2563eb; color: white; border: 1px solid #3b82f6; border-radius: 4px; padding: 6px 12px; margin-left: 5px; font-size: 13px; font-weight: bold; cursor: pointer; outline: none; box-shadow: 0 0 10px rgba(37, 99, 235, 0.5); transition: 0.3s;">
+                    🔍 Plan de pago
+                </button>
+
+                <div id="panel-busqueda-rapida" style="position: absolute; top: 100%; left: 350px; background: rgba(15, 23, 42, 0.98); border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; z-index: 3000; display: none; flex-direction: column; gap: 10px; min-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
                     <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #475569; padding-bottom: 8px;">
-                        <span style="font-weight: bold; color: #a78bfa; font-size: 14px;">🎛️ Filtros Múltiples (Sin Duplicados)</span>
+                        <span style="font-weight: bold; color: #93c5fd; font-size: 14px;">🔍 Pegar Datos</span>
+                        <span id="btn-cerrar-busqueda" style="cursor:pointer; color: #f87171; font-size: 16px;">✖</span>
+                    </div>
+                    <textarea id="input-busqueda-texto" class="scroll-filtros" placeholder="Pega una fila de Excel o escribe un ID, teléfono, nombre o correo..." style="width: 100%; height: 38px; max-height: 160px; background: #1e293b; color: #cbd5e1; border: 1px solid #475569; border-radius: 6px; padding: 8px; font-size: 12px; outline: none; resize: none; font-family: monospace; overflow-y: auto; box-sizing: border-box; transition: height 0.1s ease;"></textarea>
+                    <div style="display:flex; justify-content: flex-end;">
+                        <button type="button" id="btn-limpiar-busqueda" style="background: transparent; border: 1px solid #64748b; color: #cbd5e1; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s;">Limpiar</button>
+                    </div>
+                </div>
+
+                <div id="panel-filtro-plus" style="position: absolute; top: 100%; left: 20px; background: rgba(15, 23, 42, 0.98); border: 1px solid #8b5cf6; border-radius: 8px; padding: 15px; z-index: 3000; display: none; flex-direction: column; gap: 15px; min-width: 320px; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+                    <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #475569; padding-bottom: 8px;">
+                        <div style="display:flex; align-items:center; gap: 10px;">
+                            <span style="font-weight: bold; color: #a78bfa; font-size: 14px;">🎛️ Filtros</span>
+                            <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                                <label class="switch-mora" title="Cambia entre modo Flexible (Suma resultados) y Estricto (Cruza resultados)" style="transform: scale(0.8); margin-right: 2px;">
+                                    <input type="checkbox" id="check-modo-logica">
+                                    <span class="slider-mora"></span>
+                                </label>
+                                <span class="label-mora" id="text-modo-logica" style="color:#60a5fa; font-size: 10px; min-width: 95px;">FLEXIBLE (SUMA)</span>
+                            </div>
+                        </div>
                         <span id="btn-cerrar-plus" style="cursor:pointer; color: #f87171; font-size: 16px;">✖</span>
                     </div>
                     
@@ -807,9 +866,16 @@
                 const btnMasFiltro = document.getElementById('btn-mas-filtro');
                 const panelPlus = document.getElementById('panel-filtro-plus');
                 
+                // Elementos del Nuevo Buscador
+                const btnBuscar = document.getElementById('btn-buscar-texto');
+                const panelBusqueda = document.getElementById('panel-busqueda-rapida');
+                const inputBusqueda = document.getElementById('input-busqueda-texto');
+                const btnLimpiarBusqueda = document.getElementById('btn-limpiar-busqueda');
+
                 if(btnMasFiltro && panelPlus) {
                     btnMasFiltro.onclick = (e) => {
                         e.stopPropagation();
+                        if(panelBusqueda) panelBusqueda.style.display = 'none'; // Cierra el otro panel
                         if(panelPlus.style.display === 'none') {
                             panelPlus.style.display = 'flex';
                             actualizarPanelFiltroPlus(); 
@@ -817,9 +883,60 @@
                             panelPlus.style.display = 'none';
                         }
                     };
+
+                    if (btnBuscar && panelBusqueda) {
+                        btnBuscar.onclick = (e) => {
+                            e.stopPropagation();
+                            if(panelPlus) panelPlus.style.display = 'none'; // Cierra el otro panel
+                            if(panelBusqueda.style.display === 'none') {
+                                panelBusqueda.style.display = 'flex';
+                                inputBusqueda.focus(); // Pone el cursor directo para pegar (Ctrl+V)
+                            } else {
+                                panelBusqueda.style.display = 'none';
+                            }
+                        };
+
+                        document.getElementById('btn-cerrar-busqueda').onclick = (e) => {
+                            e.stopPropagation();
+                            panelBusqueda.style.display = 'none';
+                        };
+
+                        // Filtra en tiempo real y auto-ajusta la altura del cuadro sin desbordar
+                        inputBusqueda.addEventListener('input', function() {
+                            this.style.height = 'auto';
+                            // Se estira dinámicamente según las líneas pegadas pero se congela a los 160px máximos
+                            this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+                            actualizarTablaLotes(); 
+                        });
+
+                        btnLimpiarBusqueda.onclick = (e) => {
+                            e.stopPropagation();
+                            inputBusqueda.value = '';
+                            inputBusqueda.style.height = '38px'; // Revierte al tamaño compacto original
+                            actualizarTablaLotes();
+                            inputBusqueda.focus();
+                        };
+                    }
                     document.getElementById('btn-cerrar-plus').onclick = (e) => {
                         e.stopPropagation();
                         panelPlus.style.display = 'none';
+                    };
+                    
+                    // Lógica del Switch de Modo Filtro
+                    const checkLogica = document.getElementById('check-modo-logica');
+                    const textLogica = document.getElementById('text-modo-logica');
+                    const isEstricto = localStorage.getItem('RAFAGA_FILTRO_ESTRICTO') === 'true';
+
+                    checkLogica.checked = isEstricto;
+                    textLogica.innerText = isEstricto ? 'ESTRICTO (EMBUDO)' : 'FLEXIBLE (SUMA)';
+                    textLogica.style.color = isEstricto ? '#ef4444' : '#60a5fa';
+
+                    checkLogica.onchange = (e) => {
+                        const checked = e.target.checked;
+                        localStorage.setItem('RAFAGA_FILTRO_ESTRICTO', checked);
+                        textLogica.innerText = checked ? 'ESTRICTO (EMBUDO)' : 'FLEXIBLE (SUMA)';
+                        textLogica.style.color = checked ? '#ef4444' : '#60a5fa';
+                        actualizarTablaLotes();
                     };
                 }
             }, 100);
@@ -884,10 +1001,11 @@
                 }
             });
 
+            // Reemplaza los estilos del footer
             const footer = document.createElement('div');
             Object.assign(footer.style, {
-                padding: '12px 20px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between',
-                backgroundColor: 'rgba(30, 41, 59, 0.8)', borderRadius: '0 0 12px 12px', flexWrap: 'wrap', gap: '10px'
+                padding: '14px 24px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between',
+                backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '0 0 14px 14px', flexWrap: 'wrap', gap: '12px'
             });
             
             // 🔥 REMOVIDO EL BOTÓN DE MODO MANAGER 🔥
