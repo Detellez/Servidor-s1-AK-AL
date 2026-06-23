@@ -27,10 +27,14 @@
         style.id = 'estilos-rafaga';
         style.innerHTML = `
             #tabla-container-rafaga::-webkit-scrollbar { height: 10px; width: 10px; }
-            #tabla-container-rafaga::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.7); border-radius: 8px; margin: 4px; }
-            #tabla-container-rafaga::-webkit-scrollbar-thumb { background: #475569; border-radius: 8px; border: 2px solid rgba(15, 23, 42, 1); }
-            #tabla-container-rafaga::-webkit-scrollbar-thumb:hover { background: #64748b; }
-            .fila-rafaga:hover { background-color: rgba(51, 65, 85, 0.7); transition: background-color 0.2s; }
+            #tabla-container-rafaga::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; margin: 4px; }
+            #tabla-container-rafaga::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; border: 2px solid #0f172a; }
+            #tabla-container-rafaga::-webkit-scrollbar-thumb:hover { background: #475569; }
+            
+            /* 🦓 DIFERENCIACIÓN DE FILAS (CEBRA) FONDO SÓLIDO */
+            .fila-rafaga:nth-child(even) { background-color: #1e293b; }
+            .fila-rafaga:nth-child(odd) { background-color: #0f172a; }
+            .fila-rafaga:hover { background-color: #334155 !important; transition: background-color 0.2s; }
             
             .btn-rafaga { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-weight: bold; padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; }
             .btn-rafaga:active { transform: scale(0.95) !important; }
@@ -50,34 +54,42 @@
             .btn-yellow:hover:not(:disabled) { background: #facc15; box-shadow: 0 0 12px #eab308, 0 0 20px #eab308; transform: translateY(-2px); }
             
             /* 🔥 BOTONES DE FILTRO MÚLTIPLE 🔥 */
-            .btn-rafaga-toggle { background: #1e293b; color: #cbd5e1; border: 1px solid #475569; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight:bold; cursor: pointer; transition: 0.2s; outline:none; }
+            .btn-rafaga-toggle { background: #1e293b; color: #ffffff; border: 1px solid #334155; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight:bold; cursor: pointer; transition: 0.2s; outline:none; }
             .btn-rafaga-toggle:hover { background: #334155; }
             .btn-rafaga-toggle.active { background: #8b5cf6; color: white; border-color: #a78bfa; box-shadow: 0 0 8px rgba(139,92,246,0.6); }
 
-            /* 🔥 BOTONES NEÓN PARA FILTRO AVANZADO 🔥 */
-            .btn-neon-si, .btn-neon-no { background: #1e293b; color: #64748b; border: 1px solid #475569; opacity: 0.6; transition: 0.3s; }
-            .btn-neon-si:hover, .btn-neon-no:hover { opacity: 0.9; background: #334155; color: #cbd5e1; }
-            .btn-neon-si.active { opacity: 1; color: #39ff14 !important; border-color: #39ff14 !important; background: rgba(57, 255, 20, 0.15) !important; box-shadow: 0 0 10px rgba(57, 255, 20, 0.6) !important; text-shadow: 0 0 5px rgba(57, 255, 20, 0.8) !important; }
-            .btn-neon-no.active { opacity: 1; color: #ff073a !important; border-color: #ff073a !important; background: rgba(255, 7, 58, 0.15) !important; box-shadow: 0 0 10px rgba(255, 7, 58, 0.6) !important; text-shadow: 0 0 5px rgba(255, 7, 58, 0.8) !important; }
+            /* 🔥 BOTONES ESTADO (SIN NEÓN, BLANCO Y SÓLIDO) 🔥 */
+            .btn-neon-si, .btn-neon-no { background: #1e293b; color: #ffffff; border: 1px solid #334155; transition: 0.3s; }
+            .btn-neon-si:hover, .btn-neon-no:hover { background: #334155; color: #ffffff; transform: translateY(-1px); }
+            .btn-neon-si.active { background: #166534 !important; color: #ffffff !important; border-color: #22c55e !important; font-weight: 800; }
+            .btn-neon-no.active { background: #991b1b !important; color: #ffffff !important; border-color: #ef4444 !important; font-weight: 800; }
 
             .switch-mora { position: relative; display: inline-block; width: 34px; height: 18px; margin-right: 6px; }
             .switch-mora input { opacity: 0; width: 0; height: 0; }
             .slider-mora { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 34px; }
-            .slider-mora:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-            input:checked + .slider-mora { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
+            .slider-mora:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+            input:checked + .slider-mora { background-color: #ef4444; }
             input:checked + .slider-mora:before { transform: translateX(16px); }
-            .label-mora { font-size: 11px; font-weight: 800; cursor: pointer; user-select: none; transition: 0.3s; letter-spacing: 0.5px; }
+            .label-mora { font-size: 11px; font-weight: 800; cursor: pointer; user-select: none; transition: 0.3s; letter-spacing: 0.5px; color: #ffffff; }
             
             /* 🔥 SCROLL PARA PANELES DE FILTROS 🔥 */
             .scroll-filtros::-webkit-scrollbar { width: 6px; }
-            .scroll-filtros::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.7); border-radius: 4px; margin: 2px; }
-            .scroll-filtros::-webkit-scrollbar-thumb { background: #8b5cf6; border-radius: 4px; }
-            .scroll-filtros::-webkit-scrollbar-thumb:hover { background: #a78bfa; }
+            .scroll-filtros::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; margin: 2px; }
+            .scroll-filtros::-webkit-scrollbar-thumb { background: #64748b; border-radius: 4px; }
+            .scroll-filtros::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+            /* 🔥 MODAL PRE-FILTRO MANAGER 🔥 */
+            .pf-seccion { margin-bottom: 12px; background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
+            .pf-titulo { font-size: 12px; color: #60a5fa; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .pf-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+            .btn-isrepay { background: #1e293b; color: #ffffff; border: 1px solid #334155; border-radius: 4px; padding: 4px 16px; font-size: 13px; font-weight: bold; cursor: pointer; outline: none; transition: 0.3s; }
+            .btn-isrepay:hover { background: #334155; transform: translateY(-1px); }
+            .btn-isrepay.active { background: #166534; color: #ffffff; border-color: #22c55e; }
 
             /* 🔥 NUEVOS ESTILOS PARA EDICIÓN DE CORREOS 🔥 */
             .correo-celda { cursor: pointer; padding: 3px 6px; border-radius: 4px; transition: 0.2s; display: inline-block; min-width: 60px; font-weight: bold; }
             .correo-alerta { background-color: #f97316 !important; color: white !important; box-shadow: 0 0 5px rgba(249,115,22,0.5); }
-            .correo-valido { color: #93c5fd; }
+            .correo-valido { color: #60a5fa; }
             .correo-editando { 
                 user-select: text !important; 
                 -webkit-user-select: text !important; 
@@ -95,15 +107,14 @@
                 position: fixed;
                 pointer-events: none;
                 z-index: 2147483647;
-                background: rgba(15, 23, 42, 0.95);
+                background: #0f172a;
                 border: 1px solid #8b5cf6;
-                border-radius: 8px;
+                border-radius: 12px;
                 padding: 12px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 15px rgba(139, 92, 246, 0.4);
-                backdrop-filter: blur(10px);
+                box-shadow: 0 15px 35px rgba(0,0,0,0.8), 0 0 20px rgba(139, 92, 246, 0.3);
                 display: none;
                 max-width: 320px;
-                color: #cbd5e1;
+                color: #ffffff;
                 font-family: system-ui, -apple-system, sans-serif;
                 font-size: 12px;
                 word-wrap: break-word;
@@ -111,11 +122,11 @@
             #rafaga-tooltip img {
                 max-width: 280px;
                 max-height: 280px;
-                border-radius: 6px;
+                border-radius: 8px;
                 display: block;
                 margin-bottom: 6px;
-                border: 1px solid #475569;
-                background: #0f172a;
+                border: 1px solid #334155;
+                background: #1e293b;
             }
             .celda-hover-info {
                 text-decoration: underline dashed #a78bfa;
@@ -165,11 +176,11 @@
         let icono = tipo === 'success' ? '✅' : tipo === 'error' ? '⛔' : tipo === 'warning' ? '⚠️' : 'ℹ️';
         if(tipo==='success') color='#34d399'; if(tipo==='error') color='#f87171'; if(tipo==='warning') color='#fbbf24';
         
-        div.innerHTML = `<span style="font-size:15px; margin-right:8px;">${icono}</span><span style="font-weight:600; font-size:13px;">${texto}</span>`;
+        div.innerHTML = `<span style="font-size:15px; margin-right:8px;">${icono}</span><span style="font-weight:600; font-size:13px; color:#ffffff;">${texto}</span>`;
         Object.assign(div.style, {
             position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', padding: '10px 20px', 
-            backgroundColor: 'rgba(15, 23, 42, 0.95)', color: '#fff', borderRadius: '30px', 
-            zIndex: 2147483645, borderLeft: `3px solid ${color}`, backdropFilter: 'blur(10px)', boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+            backgroundColor: '#0f172a', color: '#ffffff', borderRadius: '30px', 
+            zIndex: 2147483645, borderLeft: `3px solid ${color}`, boxShadow: '0 10px 25px rgba(0,0,0,0.8)'
         });
         document.body.appendChild(div);
         setTimeout(() => div.remove(), tiempo); 
@@ -180,15 +191,15 @@
             const overlay = document.createElement('div');
             Object.assign(overlay.style, {
                 position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
-                backgroundColor: 'rgba(15, 23, 42, 0.85)', zIndex: '2147483645',
-                display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(5px)',
+                backgroundColor: 'rgba(0, 0, 0, 0.8)', zIndex: '2147483645',
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
                 fontFamily: 'system-ui, -apple-system, sans-serif'
             });
 
             const modal = document.createElement('div');
             Object.assign(modal.style, {
-                background: '#1e293b', padding: '25px', borderRadius: '12px', border: `1px solid ${colorConfirmar}`,
-                width: '420px', maxWidth: '90%', color: 'white', boxShadow: `0 15px 40px rgba(0,0,0,0.6), 0 0 15px ${colorConfirmar}40`,
+                background: '#0f172a', padding: '30px', borderRadius: '16px', border: `1px solid ${colorConfirmar}`,
+                width: '420px', maxWidth: '90%', color: '#ffffff', boxShadow: `0 25px 50px rgba(0,0,0,0.8)`,
                 textAlign: 'center'
             });
 
@@ -196,18 +207,18 @@
 
             modal.innerHTML = `
                 <h3 style="margin: 0 0 15px 0; color: ${colorConfirmar}; font-size: 20px; font-weight: bold;">${titulo}</h3>
-                <p style="margin: 0 0 25px 0; font-size: 15px; color: #cbd5e1; line-height: 1.5;">${mensaje}</p>
+                <p style="margin: 0 0 25px 0; font-size: 15px; color: #ffffff; line-height: 1.5;">${mensaje}</p>
                 <div style="display: flex; justify-content: center; gap: 15px;">
-                    <button id="btn-modal-cancel" style="background: transparent; border: 1px solid #64748b; color: #cbd5e1; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
-                    <button id="btn-modal-confirm" style="background: ${colorConfirmar}; border: none; color: ${colorConfirmar === '#eab308' || colorConfirmar === '#34d399' ? 'black' : 'white'}; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 0 10px ${colorConfirmar}80; transition: 0.2s;">${textoConfirmar}</button>
+                    <button id="btn-modal-cancel" style="background: #1e293b; border: 1px solid #475569; color: #ffffff; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
+                    <button id="btn-modal-confirm" style="background: ${colorConfirmar}; border: none; color: ${colorConfirmar === '#eab308' || colorConfirmar === '#34d399' ? 'black' : 'white'}; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 0 15px ${colorConfirmar}60; transition: 0.2s;">${textoConfirmar}</button>
                 </div>
             `;
 
             const btnCancel = modal.querySelector('#btn-modal-cancel');
             const btnConfirm = modal.querySelector('#btn-modal-confirm');
             
-            btnCancel.onmouseover = () => btnCancel.style.background = 'rgba(100, 116, 139, 0.2)';
-            btnCancel.onmouseout = () => btnCancel.style.background = 'transparent';
+            btnCancel.onmouseover = () => btnCancel.style.background = '#334155';
+            btnCancel.onmouseout = () => btnCancel.style.background = '#1e293b';
             btnConfirm.onmouseover = () => btnConfirm.style.transform = 'scale(1.05)';
             btnConfirm.onmouseout = () => btnConfirm.style.transform = 'scale(1)';
 
@@ -226,6 +237,183 @@
         });
     };
 
+    // ==========================================
+    // 🛠️ MODAL PRE-FILTRO MANAGER (DINÁMICO Y REACTIVO)
+    // ==========================================
+    const mostrarModalPreFiltro = (registrosBrutos) => {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            Object.assign(overlay.style, {
+                position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh', 
+                backgroundColor: 'rgba(0,0,0,0.8)', zIndex: '2147483647', 
+                display: 'flex', justifyContent: 'center', alignItems: 'center'
+            });
+
+            const modal = document.createElement('div');
+            Object.assign(modal.style, {
+                background: '#1e293b', padding: '25px', borderRadius: '16px', border: '1px solid #3b82f6', 
+                width: '650px', maxWidth: '95%', color: '#ffffff', maxHeight: '85vh', display: 'flex', 
+                flexDirection: 'column', boxShadow: '0 25px 50px rgba(0,0,0,0.9)', 
+                fontFamily: 'system-ui, sans-serif'
+            });
+
+            blindarElemento(overlay);
+
+            let selEtapas = [];
+            let selCuentas = [];
+            let selFechas = [];
+            let selMoras = [];
+            let isRepayActive = false;
+
+            let unicosMap = new Map();
+            const isVariousPlan = window.location.href.includes('variousplan.com');
+            
+            // DESCARTANDO DUPLICADOS EN LA ENTRADA
+            registrosBrutos.forEach(c => {
+                let idPlanBruto = isVariousPlan ? (c.borrowId || c.orderId || "") : (c.repayId || c.orderId || "");
+                const idPlanStr = String(idPlanBruto);
+                const idPlan = isVariousPlan ? idPlanStr : (idPlanStr.includes('p') ? idPlanStr : 'p' + idPlanStr);
+                if (idPlan && !unicosMap.has(idPlan)) unicosMap.set(idPlan, c);
+            });
+            const registrosUnicos = Array.from(unicosMap.values());
+
+            const renderUI = () => {
+                let baseParaCuentas = registrosUnicos;
+                if (selEtapas.length > 0) {
+                    baseParaCuentas = registrosUnicos.filter(r => selEtapas.includes(r.stageName || 'SIN ETAPA'));
+                }
+
+                let baseParaElResto = baseParaCuentas;
+                if (selCuentas.length > 0) {
+                    baseParaElResto = baseParaCuentas.filter(r => selCuentas.includes(r.urgeUserName || 'SIN ASIGNAR'));
+                }
+
+                const etapasAll = [...new Set(registrosUnicos.map(r => r.stageName || 'SIN ETAPA'))].sort();
+                const cuentasDisp = [...new Set(baseParaCuentas.map(r => r.urgeUserName || 'SIN ASIGNAR'))].sort();
+                const morasDisp = [...new Set(baseParaElResto.map(r => String(r.overdueDay || '0')))].sort((a,b)=>parseInt(a)-parseInt(b));
+                const fechasTodas = [...new Set(baseParaElResto.map(r => r.openTime ? String(r.openTime).split(' ')[0] : 'SIN FECHA'))];
+                const fechasDisp = fechasTodas.sort().reverse().slice(0, 5);
+
+                selCuentas = selCuentas.filter(c => cuentasDisp.includes(c));
+                selFechas = selFechas.filter(f => fechasDisp.includes(f));
+                selMoras = selMoras.filter(m => morasDisp.includes(m));
+
+                let countMatched = registrosUnicos.filter(c => {
+                    const rEtapa = c.stageName || 'SIN ETAPA';
+                    const rCuenta = c.urgeUserName || 'SIN ASIGNAR';
+                    const rMora = String(c.overdueDay || '0').trim();
+                    const rFecha = c.openTime ? String(c.openTime).split(' ')[0] : 'SIN FECHA';
+                    const rRepay = String(c.isRepay).toLowerCase() === 'true';
+
+                    if (selEtapas.length > 0 && !selEtapas.includes(rEtapa)) return false;
+                    if (selCuentas.length > 0 && !selCuentas.includes(rCuenta)) return false;
+
+                    const tieneFechas = selFechas.length > 0;
+                    const tieneMoras = selMoras.length > 0;
+                    const tieneRepay = isRepayActive;
+
+                    if (!tieneFechas && !tieneMoras && !tieneRepay) return true;
+
+                    const coincideFecha = tieneFechas && selFechas.includes(rFecha);
+                    const coincideMora = tieneMoras && selMoras.includes(rMora);
+                    const coincideRepay = tieneRepay && rRepay;
+
+                    return coincideFecha || coincideMora || coincideRepay; 
+                }).length;
+
+                modal.innerHTML = `
+                    <div style="border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 20px;">
+                        <h2 style="margin: 0; color: #60a5fa; font-size: 20px;">⚙️ Filtro Manager de Entrada</h2>
+                        <p style="margin: 8px 0 0 0; font-size: 13px; color: #ffffff;">
+                            Total de clientes únicos en servidor: ${registrosUnicos.length} <br>
+                            <span style="color:#34d399; font-size: 15px; font-weight: bold; display:inline-block; margin-top:5px;">📊 Preseleccionados ahora: ${countMatched} clientes</span>
+                        </p>
+                    </div>
+                    
+                    <div style="overflow-y: auto; flex-grow: 1; padding-right: 5px;" id="pf-scroll-area">
+                        <div class="pf-seccion">
+                            <div class="pf-titulo">📌 1. Etapas (Filtro Base)</div>
+                            <div class="pf-grid">
+                                ${etapasAll.map(e => `<button type="button" class="btn-rafaga-toggle ${selEtapas.includes(e) ? 'active' : ''}" data-type="etapa" data-val="${e}">${e}</button>`).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="pf-seccion">
+                            <div class="pf-titulo">👤 2. Cuentas / Agentes (Depende de Etapa)</div>
+                            <div class="pf-grid">
+                                ${cuentasDisp.map(c => `<button type="button" class="btn-rafaga-toggle ${selCuentas.includes(c) ? 'active' : ''}" data-type="cuenta" data-val="${c}">${c}</button>`).join('')}
+                            </div>
+                        </div>
+
+                        <div class="pf-seccion">
+                            <div class="pf-titulo">📆 3. Fechas de Conexión (Sumatorio)</div>
+                            <div class="pf-grid">
+                                ${fechasDisp.map(f => `<button type="button" class="btn-rafaga-toggle ${selFechas.includes(f) ? 'active' : ''}" data-type="fecha" data-val="${f}">${f}</button>`).join('')}
+                            </div>
+                        </div>
+
+                        <div class="pf-seccion">
+                            <div class="pf-titulo">⚠️ 4. Días de Mora (Sumatorio)</div>
+                            <div class="pf-grid">
+                                ${morasDisp.map(m => `<button type="button" class="btn-rafaga-toggle ${selMoras.includes(m) ? 'active' : ''}" data-type="mora" data-val="${m}">Día ${m}</button>`).join('')}
+                            </div>
+                        </div>
+
+                        <div class="pf-seccion" style="display:flex; align-items:center; gap: 15px;">
+                            <div class="pf-titulo" style="margin-bottom:0;">💰 5. Sumar Clientes Aprobados:</div>
+                            <button type="button" id="pf-btn-isrepay" class="btn-isrepay ${isRepayActive ? 'active' : ''}">Clientes Si</button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; border-top: 1px solid #334155; padding-top: 20px;">
+                        <button type="button" id="pf-btn-cancelar" style="background: #1e293b; border: 1px solid #ef4444; color: #f87171; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
+                        <button type="button" id="pf-btn-procesar" style="background: #3b82f6; border: none; color: white; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); transition: 0.2s;">🚀 Extraer ${countMatched} clientes</button>
+                    </div>
+                `;
+
+                modal.querySelectorAll('.btn-rafaga-toggle').forEach(btn => {
+                    btn.onclick = () => {
+                        const type = btn.getAttribute('data-type');
+                        const val = btn.getAttribute('data-val');
+                        let targetArr;
+                        
+                        if (type === 'etapa') targetArr = selEtapas;
+                        if (type === 'cuenta') targetArr = selCuentas;
+                        if (type === 'fecha') targetArr = selFechas;
+                        if (type === 'mora') targetArr = selMoras;
+
+                        if (targetArr.includes(val)) {
+                            targetArr.splice(targetArr.indexOf(val), 1); 
+                        } else {
+                            targetArr.push(val); 
+                        }
+                        renderUI(); 
+                    };
+                });
+
+                modal.querySelector('#pf-btn-isrepay').onclick = () => {
+                    isRepayActive = !isRepayActive;
+                    renderUI();
+                };
+
+                modal.querySelector('#pf-btn-cancelar').onclick = () => {
+                    overlay.remove();
+                    resolve(null);
+                };
+
+                modal.querySelector('#pf-btn-procesar').onclick = () => {
+                    overlay.remove();
+                    resolve({
+                        etapas: selEtapas, cuentas: selCuentas, moras: selMoras, fechas: selFechas, soloIsRepay: isRepayActive
+                    });
+                };
+            };
+
+            renderUI();
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+        });
+    };
 
     // ==========================================
     // 🚀 MOTOR DE EXTRACCIÓN MASIVA VÍA API 
@@ -246,8 +434,7 @@
         if (btnExtraer) { btnExtraer.innerText = '⚡Extraer Todo⚡'; btnExtraer.disabled = false; }
     };
 
-    // 🔥 API AGENTE UNICO: SIN MODAL MANAGER 🔥
-    async function iniciarExtraccionAPI() {
+    async function iniciarExtraccionAPI(esModoManager = false) {
         if (window.location.href.includes('/login')) {
             return mostrarAviso('Inicia sesión en el CRM primero.', '#ef4444', 'error');
         }
@@ -258,13 +445,12 @@
         // 🔥 AUTO-REFRESH DEL TOKEN DESDE LAS COOKIES 🔥
         const tokenFresco = obtenerTokenAutomatico();
         if (tokenFresco) {
-            inputToken.value = tokenFresco; // Actualiza el cuadro de texto silenciosamente
+            inputToken.value = tokenFresco;
         }
 
         const tokenRaw = inputToken.value.trim();
         if (!tokenRaw) return mostrarAviso('⚠️ No se encontró Token. Recarga la página o inicia sesión.', '#fbbf24', 'warning');
         
-        // Declarado con 'let' para que se pueda auto-actualizar si expira en medio proceso
         let token = decodeURIComponent(tokenRaw);
         const baseUrl = window.location.origin; 
         const countryInfo = getCountryInfo(); 
@@ -279,55 +465,60 @@
         const pageSize = 5000;
         const maxPagesPerRun = 20;
         let todosLosRegistrosBrutos = [];
+        
+        const etapasIterar = esModoManager ? [-1, 0, 1, 2, 3, 4, 5, 6, 7] : [null]; 
 
         mostrarAviso(`Buscando cuentas en ${countryInfo.name}...`, '#3b82f6', 'info');
 
         try {
-            // 🔥 ELIMINADO EL PRE-ESCANEO POR ETAPAS. TRAE TODA LA BASE DIRECTO.
-            let page = 1;
-            let totalPages = 1;
+            for (const sId of etapasIterar) {
+                let page = 1;
+                let totalPages = 1;
 
-            while (true) {
-                try {
-                    const listUrl = `${baseUrl}/api/manage/urge/task/waitUrgeTaskPage?v=${Date.now()}`;
-                    const respList = await fetch(listUrl, {
-                        method: 'POST',
-                        headers: { 'Authentication': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                        // Al no enviar 'stageId', la API escupe todo el listado global de una sola vez
-                        body: JSON.stringify({ current: page, size: pageSize })
-                    });
+                while (true) {
+                    try {
+                        const listUrl = `${baseUrl}/api/manage/urge/task/waitUrgeTaskPage?v=${Date.now()}`;
+                        let bodyParams = { current: page, size: pageSize };
+                        if (sId !== null) bodyParams.stageId = sId;
 
-                    if (!respList.ok) break; 
-                    
-                    const jsonList = await respList.json();
-                    
-                    // 🔥 RECUPERACIÓN EN VUELO SI EL TOKEN EXPIRA EN MEDIO PROCESO 🔥
-                    if (jsonList.code === 401 || jsonList.code === 403) {
-                        const nuevoTokenRaw = obtenerTokenAutomatico();
-                        if (nuevoTokenRaw && decodeURIComponent(nuevoTokenRaw) !== token) {
-                            token = decodeURIComponent(nuevoTokenRaw); // Lo actualizamos internamente
-                            inputToken.value = nuevoTokenRaw; // Actualizamos el panel visual
-                            mostrarAviso('🔄 Token expiró. Renovando automáticamente...', '#8b5cf6', 'info');
-                            continue; // Reintenta esta misma página sin abortar la descarga
-                        } else {
-                            throw new Error("TokenExpirado");
+                        const respList = await fetch(listUrl, {
+                            method: 'POST',
+                            headers: { 'Authentication': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify(bodyParams)
+                        });
+
+                        if (!respList.ok) break; 
+                        
+                        const jsonList = await respList.json();
+                        
+                        // 🔥 RECUPERACIÓN EN VUELO SI EL TOKEN EXPIRA EN MEDIO PROCESO 🔥
+                        if (jsonList.code === 401 || jsonList.code === 403) {
+                            const nuevoTokenRaw = obtenerTokenAutomatico();
+                            if (nuevoTokenRaw && decodeURIComponent(nuevoTokenRaw) !== token) {
+                                token = decodeURIComponent(nuevoTokenRaw); 
+                                inputToken.value = nuevoTokenRaw; 
+                                mostrarAviso('🔄 Token expiró. Renovando automáticamente...', '#8b5cf6', 'info');
+                                continue; 
+                            } else {
+                                throw new Error("TokenExpirado");
+                            }
                         }
+                        
+                        if (jsonList.code !== 200 && jsonList.code !== 20000 && jsonList.code !== 0) break;
+
+                        const registros = jsonList?.data?.records || jsonList?.records || [];
+                        if (registros.length === 0) break; 
+                        if (jsonList?.data?.pages) totalPages = jsonList.data.pages;
+
+                        todosLosRegistrosBrutos.push(...registros);
+
+                        page++;
+                        if (page > maxPagesPerRun || page > totalPages) break;
+                        await new Promise(r => setTimeout(r, 100)); 
+                    } catch (e) {
+                        if (e.message === "TokenExpirado") throw e; 
+                        break; 
                     }
-                    
-                    if (jsonList.code !== 200 && jsonList.code !== 20000 && jsonList.code !== 0) break;
-
-                    const registros = jsonList?.data?.records || jsonList?.records || [];
-                    if (registros.length === 0) break; 
-                    if (jsonList?.data?.pages) totalPages = jsonList.data.pages;
-
-                    todosLosRegistrosBrutos.push(...registros);
-
-                    page++;
-                    if (page > maxPagesPerRun || page > totalPages) break;
-                    await new Promise(r => setTimeout(r, 100)); 
-                } catch (e) {
-                    if (e.message === "TokenExpirado") throw e; 
-                    break; 
                 }
             }
 
@@ -337,7 +528,7 @@
                 return;
             }
 
-            // DESCARTANDO DUPLICADOS EN LA BASE CRUDA
+            // DESCARTANDO DUPLICADOS DE LA EXTRACCIÓN GLOBAL
             let unicosMap = new Map();
             todosLosRegistrosBrutos.forEach(c => {
                 let idPlanBruto = isVariousPlan ? (c.borrowId || c.orderId || "") : (c.repayId || c.orderId || "");
@@ -345,10 +536,46 @@
                 const idPlan = isVariousPlan ? idPlanStr : (idPlanStr.includes('p') ? idPlanStr : 'p' + idPlanStr);
                 if (idPlan && !unicosMap.has(idPlan)) unicosMap.set(idPlan, c);
             });
-            let registrosAProcesar = Array.from(unicosMap.values());
+            const registrosUnicos = Array.from(unicosMap.values());
+            
+            let registrosAProcesar = [];
+
+            if (esModoManager) {
+                const filtrosElegidos = await mostrarModalPreFiltro(todosLosRegistrosBrutos);
+                if (!filtrosElegidos) {
+                    mostrarAviso('Extracción cancelada', '#fbbf24', 'warning');
+                    restaurarBotones();
+                    return;
+                }
+
+                registrosAProcesar = registrosUnicos.filter(c => {
+                    const rEtapa = c.stageName || 'SIN ETAPA';
+                    const rCuenta = c.urgeUserName || 'SIN ASIGNAR';
+                    const rMora = String(c.overdueDay || '0').trim();
+                    const rFecha = c.openTime ? String(c.openTime).split(' ')[0] : 'SIN FECHA';
+                    const rRepay = String(c.isRepay).toLowerCase() === 'true';
+
+                    if (filtrosElegidos.etapas.length > 0 && !filtrosElegidos.etapas.includes(rEtapa)) return false; 
+                    if (filtrosElegidos.cuentas.length > 0 && !filtrosElegidos.cuentas.includes(rCuenta)) return false;
+
+                    const tieneFechas = filtrosElegidos.fechas.length > 0;
+                    const tieneMoras = filtrosElegidos.moras.length > 0;
+                    const tieneRepay = filtrosElegidos.soloIsRepay;
+
+                    if (!tieneFechas && !tieneMoras && !tieneRepay) return true; 
+
+                    const coincideFecha = tieneFechas && filtrosElegidos.fechas.includes(rFecha);
+                    const coincideMora = tieneMoras && filtrosElegidos.moras.includes(rMora);
+                    const coincideRepay = tieneRepay && rRepay;
+
+                    return coincideFecha || coincideMora || coincideRepay; 
+                });
+            } else {
+                registrosAProcesar = registrosUnicos;
+            }
             
             if(registrosAProcesar.length === 0) {
-                mostrarAviso('Ningún cliente válido encontrado', '#fbbf24', 'warning');
+                mostrarAviso('Ningún cliente válido encontrado o coincide con el filtro', '#fbbf24', 'warning');
                 restaurarBotones();
                 return;
             }
@@ -374,8 +601,8 @@
                     let linkDescarga = c.downloadLink || "";
                     let dniUrl = c.idNoUrl || "";
                     let selfUrl = c.livingNessUrl || ""; 
-                    let ref1 = ""; // Variables listas
-                    let ref2 = ""; // Variables listas
+                    let ref1 = ""; 
+                    let ref2 = ""; 
 
                     if (c.taskId && c.orderId && detailCalls < maxDetailCallsPerRun) {
                         detailCalls++;
@@ -427,11 +654,9 @@
 
                     const prefixClean = countryInfo.prefix.replace('+', '');
                     
-                    // Lógica Teléfono Titular
                     const telLimpio = telefono.replace(/[^0-9]/g, '');
                     const telefonoFinal = telLimpio.length >= countryInfo.digits ? (prefixClean + telLimpio.slice(-countryInfo.digits)) : (prefixClean + telLimpio);
 
-                    // 🔥 LÓGICA DE REFERENCIAS: Cortamos los últimos N dígitos y pegamos prefijo
                     const ref1Limpio = ref1.replace(/[^0-9]/g, '');
                     const ref1Final = ref1Limpio ? (ref1Limpio.length >= countryInfo.digits ? (prefixClean + ref1Limpio.slice(-countryInfo.digits)) : (prefixClean + ref1Limpio)) : '';
                     
@@ -446,7 +671,7 @@
                         fechaConexion: c.openTime ? String(c.openTime).split(' ')[0] : '',
                         isRepay: c.isRepay, cuenta: c.urgeUserName || "Sin Asignar",
                         linkDescarga: linkDescarga, dniUrl: dniUrl, selfUrl: selfUrl,
-                        ref1: ref1Final, ref2: ref2Final // <-- ¡Se inyectan aquí!
+                        ref1: ref1Final, ref2: ref2Final 
                     };
                 });
 
@@ -549,18 +774,12 @@
             // 🔥 NUEVO MOTOR DE BÚSQUEDA Y PEGADO EXCEL 🔥
             const textoBusqueda = (document.getElementById('input-busqueda-texto')?.value || '').toLowerCase().trim();
             if (textoBusqueda !== '') {
-                // Preparamos los datos del cliente unidos en un solo string
                 const stringCliente = `${c.idPlan} ${c.telefono} ${c.nombre} ${c.app} ${c.correo} ${c.producto}`.toLowerCase();
-                
-                // 1. Si escribes un nombre/correo corto -> ¿El cliente contiene ese texto?
                 const matchDirecto = stringCliente.includes(textoBusqueda);
-                
-                // 2. Si pegas una fila larga de Excel -> ¿La fila pegada contiene el ID o el Teléfono del cliente?
                 const matchInverso = textoBusqueda.includes(String(c.idPlan).toLowerCase()) || 
                                      textoBusqueda.includes(String(c.telefono).replace('+', '').toLowerCase()) ||
                                      (c.correo && c.correo.trim() !== '' && textoBusqueda.includes(String(c.correo).toLowerCase()));
                 
-                // Si no coincide ni directa ni inversamente, descartamos la fila
                 if (!matchDirecto && !matchInverso) return false; 
             }
 
@@ -581,19 +800,50 @@
             const isEstricto = localStorage.getItem('RAFAGA_FILTRO_ESTRICTO') === 'true';
 
             if (isEstricto) {
-                // MODO ESTRICTO (EMBUDO - AND): Si la categoría tiene algo seleccionado, TIENE que coincidir.
                 let pasaFecha = tieneFechas ? coincideFecha : true;
                 let pasaMora = tieneMoras ? coincideMora : true;
                 let pasaRepay = tieneRepay ? coincideRepay : true;
                 return pasaFecha && pasaMora && pasaRepay;
             } else {
-                // MODO FLEXIBLE (SUMA - OR): Basta con que coincida con una de las categorías activas.
                 return (tieneFechas && coincideFecha) || 
                        (tieneMoras && coincideMora) || 
                        (tieneRepay && coincideRepay);
             }
         });
-        filtrado.sort((a, b) => (parseInt(a.diasMora) || 0) - (parseInt(b.diasMora) || 0));
+
+        // 1. Contar cuántas veces se repite cada teléfono para detectar duplicados
+        const frecuenciaTel = {};
+        filtrado.forEach(c => {
+            const tel = c.telefono || 'sin_tel';
+            frecuenciaTel[tel] = (frecuenciaTel[tel] || 0) + 1;
+        });
+
+        // 2. Aplicar el orden estricto solicitado
+        filtrado.sort((a, b) => {
+            const telA = a.telefono || 'sin_tel';
+            const telB = b.telefono || 'sin_tel';
+            const esDupA = frecuenciaTel[telA] > 1;
+            const esDupB = frecuenciaTel[telB] > 1;
+
+            // Prioridad 1: Clientes duplicados van hasta arriba en su propio bloque
+            if (esDupA && !esDupB) return -1;
+            if (!esDupA && esDupB) return 1;
+
+            // Prioridad 2: Dentro de su bloque (duplicados o únicos), ordenar por fecha (más reciente arriba)
+            const fechaA = a.fechaConexion || "";
+            const fechaB = b.fechaConexion || "";
+            if (fechaA !== fechaB) {
+                return fechaB.localeCompare(fechaA); // Orden descendente (más nuevo a más viejo)
+            }
+
+            // Prioridad 3: Si tienen exactamente la misma fecha, agrupar por teléfono para mantener el orden visual
+            if (telA !== telB) {
+                return telA.localeCompare(telB);
+            }
+
+            return 0; 
+        });
+
         return filtrado;
     };
 
@@ -673,8 +923,8 @@
             Object.assign(panel.style, {
                 position: 'fixed', top: '10vh', left: '50%', transform: 'translateX(-50%)', 
                 width: 'max-content', maxWidth: '96vw', height: 'auto', maxHeight: '80vh', 
-                backgroundColor: 'rgba(15, 23, 42, 0.95)', color: '#fff', borderRadius: '12px', 
-                zIndex: 2147483645, backdropFilter: 'blur(10px)', boxShadow: '0 15px 40px rgba(0,0,0,0.6)', 
+                backgroundColor: '#0f172a', color: '#ffffff', borderRadius: '12px', 
+                zIndex: 2147483645, boxShadow: '0 15px 40px rgba(0,0,0,0.8)', 
                 display: 'none', flexDirection: 'column', border: '1px solid #334155', 
                 fontFamily: 'system-ui, -apple-system, sans-serif',
                 
@@ -687,7 +937,7 @@
             Object.assign(header.style, {
                 padding: '12px 20px', borderBottom: '1px solid #334155', display: 'flex', 
                 justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '15px',
-                cursor: 'grab', backgroundColor: 'rgba(30, 41, 59, 0.95)', borderRadius: '12px 12px 0 0'
+                cursor: 'grab', backgroundColor: '#1e293b', borderRadius: '12px 12px 0 0'
             });
             
             const tokenDetectado = obtenerTokenAutomatico() || "";
@@ -701,10 +951,10 @@
                     <span id="titulo-panel" style="cursor:pointer; white-space:nowrap; user-select:none;">📋 Base de datos</span>
                     <div style="position:relative; flex-grow:1; max-content; max-width: 400px;">
                         <input type="text" id="input-token-api" value="${tokenDetectado}" readonly 
-                               style="width: 100%; background: #1e293b; color: #34d399; border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; font-size: 10px; outline: none; font-family: monospace; cursor: default; user-select: none;">
+                               style="width: 100%; background: #0f172a; color: #34d399; border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; font-size: 10px; outline: none; font-family: monospace; cursor: default; user-select: none; filter: blur(5px); transition: filter 0.3s;">
                         <div id="escudo-token" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; cursor:default;"></div>
                     </div>
-                    <span style="font-size:11px; font-weight:normal; color:#94a3b8; background:#0f172a; padding:2px 6px; border-radius:4px; user-select:none;">${atajoTexto}</span>
+                    <span style="font-size:11px; font-weight:normal; color:#ffffff; background:#0f172a; padding:2px 6px; border-radius:4px; user-select:none;">${atajoTexto}</span>
                 </div>
                 <button type="button" id="btn-cerrar-panel" style="background:none; border:none; color:#f87171; cursor:pointer; font-size:18px; line-height:1;">✖</button>
             `;
@@ -728,10 +978,10 @@
                             const pass = prompt("🔐 Acceso de Administrador para editar Token:");
                             if (pass === "1234") {
                                 inputToken.readOnly = false;
-                                inputToken.style.filter = "none"; // Quita el borroso
+                                inputToken.style.filter = "none"; 
                                 inputToken.style.opacity = "1";
-                                inputToken.style.background = "rgba(15, 23, 42, 0.8)";
-                                inputToken.style.border = "1px solid rgba(59, 130, 246, 0.5)";
+                                inputToken.style.background = "#1e293b";
+                                inputToken.style.border = "1px solid #3b82f6";
                                 inputToken.style.borderRadius = "4px";
                                 inputToken.style.cursor = "text";
                                 inputToken.style.userSelect = "text";
@@ -775,10 +1025,9 @@
                 header.style.cursor = 'grab'; 
             }, true);
 
-            // Reemplaza los estilos del toolbar
             const toolbar = document.createElement('div');
             Object.assign(toolbar.style, {
-                padding: '10px 24px', borderBottom: '1px solid rgba(255,255,255,0.03)', backgroundColor: 'transparent',
+                padding: '10px 24px', borderBottom: '1px solid #334155', backgroundColor: '#0f172a',
                 display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap', position: 'relative' 
             });
 
@@ -789,12 +1038,12 @@
                 
                 <div style="width: 1px; height: 20px; background: #475569; margin: 0 5px;"></div> 
                 
-                <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display:flex; align-items:center; background: #1e293b; padding: 4px 10px; border-radius: 20px; border: 1px solid #334155;">
                     <label class="switch-mora" title="Muestra columnas extra (Link, DNI, Self)">
                         <input type="checkbox" id="check-modo-etc">
                         <span class="slider-mora"></span>
                     </label>
-                    <span class="label-mora" id="text-modo-etc" style="margin-right:8px;">SIN ETC</span>
+                    <span class="label-mora" id="text-modo-etc" style="margin-right:8px; color:#ffffff;">SIN ETC</span>
                     
                     <div style="width: 1px; height: 14px; background: #475569; margin: 0 8px;"></div>
 
@@ -802,10 +1051,10 @@
                         <input type="checkbox" id="check-modo-mora">
                         <span class="slider-mora"></span>
                     </label>
-                    <span class="label-mora" id="text-modo-mora" style="margin-right:8px;">SIN MORA</span>
+                    <span class="label-mora" id="text-modo-mora" style="margin-right:8px; color:#ffffff;">SIN MORA</span>
                     
                     <div style="width: 1px; height: 14px; background: #475569; margin: 0 8px;"></div>
-                    <span title="Cuenta / Agente de los datos mostrados" style="font-size: 11px; font-weight: bold; color: #93c5fd; display: flex; align-items: center; gap: 4px; white-space: normal; word-break: break-word;">
+                    <span title="Cuenta / Agente de los datos mostrados" style="font-size: 11px; font-weight: bold; color: #60a5fa; display: flex; align-items: center; gap: 4px; white-space: normal; word-break: break-word;">
                         👤 <span id="label-cuentas-extraidas">Vacío</span>
                     </span>
                 </div>
@@ -814,22 +1063,22 @@
                     🔍 Plan de pago
                 </button>
 
-                <div id="panel-busqueda-rapida" style="position: absolute; top: 100%; left: 350px; background: rgba(15, 23, 42, 0.98); border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; z-index: 3000; display: none; flex-direction: column; gap: 10px; min-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
-                    <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #475569; padding-bottom: 8px;">
-                        <span style="font-weight: bold; color: #93c5fd; font-size: 14px;">🔍 Pegar Datos</span>
+                <div id="panel-busqueda-rapida" style="position: absolute; top: 100%; left: 350px; background: #0f172a; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; z-index: 3000; display: none; flex-direction: column; gap: 10px; min-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+                    <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px;">
+                        <span style="font-weight: bold; color: #60a5fa; font-size: 14px;">🔍 Pegar Datos</span>
                         <span id="btn-cerrar-busqueda" style="cursor:pointer; color: #f87171; font-size: 16px;">✖</span>
                     </div>
-                    <textarea id="input-busqueda-texto" class="scroll-filtros" placeholder="Pega una fila de Excel o escribe un ID, teléfono, nombre o correo..." style="width: 100%; height: 38px; max-height: 160px; background: #1e293b; color: #cbd5e1; border: 1px solid #475569; border-radius: 6px; padding: 8px; font-size: 12px; outline: none; resize: none; font-family: monospace; overflow-y: auto; box-sizing: border-box; transition: height 0.1s ease;"></textarea>
+                    <textarea id="input-busqueda-texto" class="scroll-filtros" placeholder="Pega una fila de Excel o escribe un ID, teléfono, nombre o correo..." style="width: 100%; height: 38px; max-height: 160px; background: #1e293b; color: #ffffff; border: 1px solid #475569; border-radius: 6px; padding: 8px; font-size: 12px; outline: none; resize: none; font-family: monospace; overflow-y: auto; box-sizing: border-box; transition: height 0.1s ease;"></textarea>
                     <div style="display:flex; justify-content: flex-end;">
-                        <button type="button" id="btn-limpiar-busqueda" style="background: transparent; border: 1px solid #64748b; color: #cbd5e1; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s;">Limpiar</button>
+                        <button type="button" id="btn-limpiar-busqueda" style="background: transparent; border: 1px solid #475569; color: #ffffff; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s;">Limpiar</button>
                     </div>
                 </div>
 
-                <div id="panel-filtro-plus" style="position: absolute; top: 100%; left: 20px; background: rgba(15, 23, 42, 0.98); border: 1px solid #8b5cf6; border-radius: 8px; padding: 15px; z-index: 3000; display: none; flex-direction: column; gap: 15px; min-width: 320px; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
-                    <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #475569; padding-bottom: 8px;">
+                <div id="panel-filtro-plus" style="position: absolute; top: 100%; left: 20px; background: #0f172a; border: 1px solid #8b5cf6; border-radius: 8px; padding: 15px; z-index: 3000; display: none; flex-direction: column; gap: 15px; min-width: 320px; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+                    <div style="display:flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px;">
                         <div style="display:flex; align-items:center; gap: 10px;">
-                            <span style="font-weight: bold; color: #a78bfa; font-size: 14px;">🎛️ Filtros</span>
-                            <div style="display:flex; align-items:center; background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                            <span style="font-weight: bold; color: #60a5fa; font-size: 14px;">🎛️ Filtros</span>
+                            <div style="display:flex; align-items:center; background: #1e293b; padding: 3px 8px; border-radius: 12px; border: 1px solid #334155;">
                                 <label class="switch-mora" title="Cambia entre modo Flexible (Suma resultados) y Estricto (Cruza resultados)" style="transform: scale(0.8); margin-right: 2px;">
                                     <input type="checkbox" id="check-modo-logica">
                                     <span class="slider-mora"></span>
@@ -841,22 +1090,22 @@
                     </div>
                     
                     <div>
-                        <label style="font-size: 12px; color: #cbd5e1; font-weight:bold; display:block; margin-bottom:5px;">📱 Aplicación (Múltiple):</label>
+                        <label style="font-size: 12px; color: #ffffff; font-weight:bold; display:block; margin-bottom:5px;">📱 Aplicación (Múltiple):</label>
                         <div id="plus-apps-container" class="scroll-filtros" style="display:flex; flex-wrap:wrap; gap:6px; max-height: 90px; overflow-y: auto; align-content: flex-start; padding-right: 4px;"></div>
                     </div>
 
                     <div>
-                        <label style="font-size: 12px; color: #cbd5e1; font-weight:bold; display:block; margin-bottom:5px;">📆 Fechas de Conexión (Múltiple):</label>
+                        <label style="font-size: 12px; color: #ffffff; font-weight:bold; display:block; margin-bottom:5px;">📆 Fechas de Conexión (Múltiple):</label>
                         <div id="plus-fechas-container" class="scroll-filtros" style="display:flex; flex-wrap:wrap; gap:6px; max-height: 120px; overflow-y: auto; align-content: flex-start; padding-right: 4px;"></div>
                     </div>
 
                     <div>
-                        <label style="font-size: 12px; color: #cbd5e1; font-weight:bold; display:block; margin-bottom:5px;">⚠️ Días de Mora (Múltiple):</label>
+                        <label style="font-size: 12px; color: #ffffff; font-weight:bold; display:block; margin-bottom:5px;">⚠️ Días de Mora (Múltiple):</label>
                         <div id="plus-moras-container" class="scroll-filtros" style="display:flex; flex-wrap:wrap; gap:6px; max-height: 120px; overflow-y: auto; align-content: flex-start; padding-right: 4px;"></div>
                     </div>
 
                     <div>
-                        <label style="font-size: 12px; color: #cbd5e1; font-weight:bold; display:block; margin-bottom:5px;">💰 Estado (Múltiple):</label>
+                        <label style="font-size: 12px; color: #ffffff; font-weight:bold; display:block; margin-bottom:5px;">💰 Estado (Múltiple):</label>
                         <div id="plus-repay-container" class="scroll-filtros" style="display:flex; flex-wrap:wrap; gap:6px; max-height: 70px; overflow-y: auto; align-content: flex-start; padding-right: 4px;"></div>
                     </div>
                 </div>
@@ -968,12 +1217,12 @@
                         
                         tooltip.innerHTML = `
                             <img src="${url}" alt="Cargando imagen...">
-                            <div style="text-align:center; color:#94a3b8; font-size:10px;">📄 ${nombreArchivo}</div>
+                            <div style="text-align:center; color:#ffffff; font-size:10px;">📄 ${nombreArchivo}</div>
                         `;
                     } else {
                         tooltip.innerHTML = `
                             <div style="color:#34d399; font-weight:bold; margin-bottom:6px; border-bottom:1px solid #334155; padding-bottom:4px;">🔗 ENLACE DE DESCARGA:</div>
-                            <div style="word-break: break-all; color:#e2e8f0; line-height:1.4;">${url}</div>
+                            <div style="word-break: break-all; color:#ffffff; line-height:1.4;">${url}</div>
                         `;
                     }
                 }
@@ -1004,11 +1253,11 @@
             // Reemplaza los estilos del footer
             const footer = document.createElement('div');
             Object.assign(footer.style, {
-                padding: '14px 24px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between',
-                backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '0 0 14px 14px', flexWrap: 'wrap', gap: '12px'
+                padding: '14px 24px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between',
+                backgroundColor: '#1e293b', borderRadius: '0 0 12px 12px', flexWrap: 'wrap', gap: '12px'
             });
             
-            // 🔥 REMOVIDO EL BOTÓN DE MODO MANAGER 🔥
+            // 🔥 BOTÓN MODO MANAGER ELIMINADO AQUÍ 🔥
             footer.innerHTML = `
                 <div style="display:flex; align-items:center; gap:8px;">
                     <button type="button" id="btn-limpiar-lote" class="btn-rafaga btn-red" title="Limpiar Base">🗑️</button>
@@ -1036,13 +1285,13 @@
 
             checkEtc.checked = isEtcActive;
             textEtc.innerText = isEtcActive ? 'CON ETC' : 'SIN ETC';
-            textEtc.style.color = isEtcActive ? '#8b5cf6' : '#94a3b8';
+            textEtc.style.color = isEtcActive ? '#8b5cf6' : '#ffffff';
 
             checkEtc.onchange = (e) => {
                 const checked = e.target.checked;
                 localStorage.setItem('RAFAGA_MODO_ETC', checked);
                 textEtc.innerText = checked ? 'CON ETC' : 'SIN ETC';
-                textEtc.style.color = checked ? '#8b5cf6' : '#94a3b8';
+                textEtc.style.color = checked ? '#8b5cf6' : '#ffffff';
                 actualizarTablaLotes();
             };
 
@@ -1052,13 +1301,13 @@
 
             checkMora.checked = isMoraActive;
             textMora.innerText = isMoraActive ? 'CON MORA' : 'SIN MORA';
-            textMora.style.color = isMoraActive ? '#ef4444' : '#94a3b8';
+            textMora.style.color = isMoraActive ? '#ef4444' : '#ffffff';
 
             checkMora.onchange = (e) => {
                 const checked = e.target.checked;
                 localStorage.setItem('RAFAGA_MODO_MORA', checked);
                 textMora.innerText = checked ? 'CON MORA' : 'SIN MORA';
-                textMora.style.color = checked ? '#ef4444' : '#94a3b8';
+                textMora.style.color = checked ? '#ef4444' : '#ffffff';
                 actualizarTablaLotes();   
             };
 
@@ -1076,7 +1325,7 @@
                     actualizarTablaLotes();
                 }
             };
-            
+
             const btnExtraerTodo = document.getElementById('btn-extraer-todo');
             if (btnExtraerTodo) {
                 btnExtraerTodo.onclick = async (e) => { 
@@ -1084,12 +1333,12 @@
                     e.stopPropagation(); 
                     const confirmado = await mostrarConfirmacionHTML(
                         '⚠️ ADVERTENCIA DE SISTEMA',
-                        '¿Estás seguro que estás en una <strong style="color:#34d399;">cuenta</strong> administrada por agente?',
+                        '¿Estás seguro que estás en una <strong style="color:#34d399;">cuenta única</strong> administrada por agente?',
                         'Sí, Continuar',
                         '#34d399' 
                     );
                     if(confirmado) {
-                        iniciarExtraccionAPI(); 
+                        iniciarExtraccionAPI(false); 
                     }
                 };
             }
@@ -1099,36 +1348,59 @@
                 let lote = obtenerLoteFiltrado();
                 if (lote.length === 0) return mostrarAviso('No hay contactos', '#fbbf24', 'warning');
                 
-                // 🔥 Cabecera modificada según el formato solicitado
-                let csvContent = "\uFEFFID PLAN,NOMBRE,APP,PRODUCTO,DEUDA TOTAL,PRORROGA,DIAS MORA,CARGO POR MORA,MONTO CONTRATO,NUMERO,REFERENCIA 1,REFERENCIA 2\n"; 
-                
-                lote.forEach(c => {
-                    let idPlan = c.idPlan || '';
-                    
-                    // Limpiamos comillas y comas internas para que el CSV plano no se rompa
-                    let nom = c.nombre ? c.nombre.trim().replace(/["',]/g, ' ') : '';
-                    let app = c.app ? c.app.replace(/["',]/g, ' ') : '';
-                    let producto = c.producto ? c.producto.replace(/["',]/g, ' ') : '';
-                    
-                    let monto = c.monto || '0';
-                    let reinv = c.importeReinv || '0';
-                    let diasMora = c.diasMora || '0';
-                    let cargoMora = c.cargoMora || '0';
-                    let montoPago = c.montoPago || '0';
-                    
-                    let tel = c.telefono ? c.telefono.replace('+', '').trim() : ''; 
-                    let r1 = c.ref1 ? c.ref1.replace('+', '').trim() : '';
-                    let r2 = c.ref2 ? c.ref2.replace('+', '').trim() : '';
+                // Función auxiliar para escapar campos según el estándar CSV
+                const escaparCSV = (texto) => {
+                    if (!texto) return '';
+                    let str = String(texto).trim();
+                    if (str.includes('"')) str = str.replace(/"/g, '""');
+                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                        return `"${str}"`;
+                    }
+                    return str;
+                };
 
-                    // Construcción de la fila SIN COMILLAS, solo separada por comas
-                    csvContent += `${idPlan},${nom},${app},${producto},${monto},${reinv},${diasMora},${cargoMora},${montoPago},${tel},${r1},${r2}\n`;
-                });
+                let filasCSV = [];
                 
+                // Cabecera EXACTA a la original (sin correo)
+                filasCSV.push("\uFEFFID PLAN,NOMBRE,APP,PRODUCTO,DEUDA TOTAL,PRORROGA,DIAS MORA,CARGO POR MORA,MONTO CONTRATO,NUMERO,REFERENCIA 1,REFERENCIA 2");
+
+                lote.forEach(c => {
+                    // Se añade \t oculto para forzar formato texto en Excel y evitar notación científica
+                    let tel = c.telefono ? '\t' + c.telefono.replace('+', '').trim() : '';
+                    let r1 = c.ref1 ? '\t' + c.ref1.replace('+', '').trim() : '';
+                    let r2 = c.ref2 ? '\t' + c.ref2.replace('+', '').trim() : '';
+
+                    let fila = [
+                        c.idPlan || '',
+                        escaparCSV(c.nombre),
+                        escaparCSV(c.app),
+                        escaparCSV(c.producto),
+                        c.monto || '0',
+                        c.importeReinv || '0',
+                        c.diasMora || '0',
+                        c.cargoMora || '0',
+                        c.montoPago || '0',
+                        tel,
+                        r1,
+                        r2
+                    ];
+
+                    filasCSV.push(fila.join(','));
+                });
+
+                const csvContent = filasCSV.join('\n');
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url;
+                
+                const a = document.createElement('a'); 
+                a.href = url;
                 a.download = `Gestión_Cartera_${new Date().toISOString().split('T')[0]}.csv`;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                
+                document.body.appendChild(a); 
+                a.click(); 
+                document.body.removeChild(a); 
+                URL.revokeObjectURL(url);
+                
                 mostrarAviso('CSV descargado 📥', '#f59e0b', 'success');
             };
 
@@ -1190,7 +1462,7 @@
         }
 
         if (loteFiltrado.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b; font-size:14px; min-width: 600px;">No hay datos en la Base o coincidiendo con el filtro.</div>';
+            container.innerHTML = '<div style="text-align:center; padding:40px; color:#ffffff; font-size:14px; min-width: 600px;">No hay datos en la Base o coincidiendo con el filtro.</div>';
             const btnCopy = document.getElementById('btn-copiar-lote');
             if(btnCopy) btnCopy.innerText = `Copy Datos`;
             return;
@@ -1202,8 +1474,8 @@
 
         let html = `
             <table style="width: max-content; min-width: 100%; text-align:left; border-collapse: collapse; white-space: nowrap;">
-                <thead style="position: sticky; top: 0; background-color: rgba(30, 41, 59, 1); z-index: 10;">
-                    <tr style="border-bottom: 2px solid #475569; color: #94a3b8;">
+                <thead style="position: sticky; top: 0; background-color: #1e293b; z-index: 10;">
+                    <tr style="border-bottom: 2px solid #334155; color: #ffffff;">
                         <th style="padding:10px 15px;">ID Plan</th>
                         <th style="padding:10px 15px;">Teléfono</th>
                         <th style="padding:10px 15px;">Nombre</th>
@@ -1231,7 +1503,7 @@
         const prefLen = cInfo.prefix.replace('+', '').length;
 
         loteFiltrado.forEach(c => {
-            let colorFecha = '#64748b'; 
+            let colorFecha = '#ffffff'; 
             
             // 🔥 Variables compactas exclusivas para visualización
             let telVisible = (c.telefono || '').length > prefLen ? c.telefono.substring(prefLen) : c.telefono;
@@ -1246,12 +1518,13 @@
 
             let esRepay = String(c.isRepay).toLowerCase() === 'true';
             let txtRepay = esRepay ? 'Si' : 'No';
-            let colorNeon = esRepay ? '#39ff14' : '#ff073a'; 
-            let bgNeon = esRepay ? 'rgba(57, 255, 20, 0.1)' : 'rgba(255, 7, 58, 0.1)';
+            let colorTexto = esRepay ? '#4ade80' : '#f87171'; 
+            let bgSolid = esRepay ? '#166534' : '#991b1b';
+            let bordeSolid = esRepay ? '#22c55e' : '#ef4444';
             
             let etiquetaRepay = `
                 <div style="margin-top: 4px; user-select: none; pointer-events: none;">
-                    <span style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: ${bgNeon}; color: ${colorNeon}; border: 1px solid ${colorNeon}; box-shadow: 0 0 6px rgba(${esRepay ? '57,255,20' : '255,7,58'}, 0.5); letter-spacing: 0.5px; user-select: none; -webkit-user-select: none; -moz-user-select: none;">
+                    <span style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: ${bgSolid}; color: ${colorTexto}; border: 1px solid ${bordeSolid}; letter-spacing: 0.5px; user-select: none; -webkit-user-select: none; -moz-user-select: none;">
                         ${txtRepay}
                     </span>
                 </div>
@@ -1260,18 +1533,18 @@
             html += `
                 <tr class="fila-rafaga" style="border-bottom: 1px solid #334155;">
                     <td class="idplan-celda" style="padding:8px 15px; color:#60a5fa; font-weight:bold; cursor:pointer;" title="Doble clic para copiar ID">${c.idPlan}</td>
-                    <td style="padding:8px 15px; color:#e2e8f0; cursor:help;" title="${c.telefono}">${telVisible}</td>
-                    <td style="padding:8px 15px; line-height: 1.2; cursor:help;" title="${c.nombre}">
+                    <td style="padding:8px 15px; color:#ffffff; cursor:help;" title="${c.telefono}">${telVisible}</td>
+                    <td style="padding:8px 15px; color:#ffffff; line-height: 1.2; cursor:help;" title="${c.nombre}">
                         <div>${nomVisible}</div>
                         ${c.fechaConexion ? `<div style="font-size: 10.5px; color: ${colorFecha}; margin-top: 2px; font-weight: 600;">🕒 ${c.fechaConexion}</div>` : ''}
                     </td>
-                    <td style="padding:8px 15px; color:#cbd5e1; font-weight:bold;">${c.app}</td>
+                    <td style="padding:8px 15px; color:#ffffff; font-weight:bold;">${c.app}</td>
                     
                     <td style="padding:8px 15px;">
                         <span class="correo-celda ${claseCorreo}" data-idplan="${c.idPlan}" title="Doble Clic para editar">${txtCorreo}</span>
                     </td>
 
-                    <td style="padding:8px 15px; color:#cbd5e1; line-height: 1.2;">
+                    <td style="padding:8px 15px; color:#ffffff; line-height: 1.2;">
                         <div>${c.producto}</div>
                         ${etiquetaRepay}
                     </td>
@@ -1414,7 +1687,7 @@
                 if (checkMora && textMora) {
                     checkMora.checked = (nuevoEstado === 'true');
                     textMora.innerText = checkMora.checked ? 'CON MORA' : 'SIN MORA';
-                    textMora.style.color = checkMora.checked ? '#ef4444' : '#94a3b8';
+                    textMora.style.color = checkMora.checked ? '#ef4444' : '#ffffff';
                     actualizarTablaLotes();
                 }
             }
@@ -1423,7 +1696,6 @@
     let lastUrl = location.href;
 
     (async () => {
-        // 🔥 MODIFICADO: Ahora el panel inicia OCULTO ('false') por defecto la primera vez
         if (localStorage.getItem('PANEL_RAFAGA_VISIBLE') === null) localStorage.setItem('PANEL_RAFAGA_VISIBLE', 'false');
         if (localStorage.getItem('RAFAGA_MODO_ETC') === null) localStorage.setItem('RAFAGA_MODO_ETC', 'true');
         
