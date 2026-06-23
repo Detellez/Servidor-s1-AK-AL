@@ -954,13 +954,11 @@ function procesarTags(texto) {
                     const numMatch = texto.match(/\d{7,15}/);
                     if (numMatch) {
                         const numOriginal = numMatch[0];
-                        const numCompleto = prefixClean + numOriginal; // Este es el que se copia
+                        const numCompleto = prefixClean + numOriginal; 
                         
-                        // Guardar número original por seguridad para extracciones
                         div.setAttribute('data-tel-original', numOriginal);
                         const label = texto.split(':')[0];
                         
-                        // Se muestra SOLO el numOriginal en la interfaz
                         div.innerHTML = `${label}: <span class="tellez-tel-prefijo" style="
                             color:#047857; font-weight:bold; cursor:pointer;
                             background:rgba(16, 185, 129, 0.15); border-radius:4px;
@@ -972,12 +970,9 @@ function procesarTags(texto) {
                         span.addEventListener('mouseenter', () => span.style.background = 'rgba(16, 185, 129, 0.25)');
                         span.addEventListener('mouseleave', () => span.style.background = 'rgba(16, 185, 129, 0.15)');
                         
-                        // Copiado silencioso
                         span.addEventListener('click', () => {
-                            // Copia el número CON prefijo
                             navigator.clipboard.writeText(numCompleto).then(() => {
                                 span.textContent = '✅ Copiado!';
-                                // Regresa a mostrar el número SIN prefijo
                                 setTimeout(() => { span.textContent = numOriginal; }, 1500);
                             });
                         });
@@ -1005,7 +1000,6 @@ function procesarTags(texto) {
                         span.addEventListener('mouseenter', () => span.style.background = 'rgba(16, 185, 129, 0.25)');
                         span.addEventListener('mouseleave', () => span.style.background = 'rgba(16, 185, 129, 0.15)');
                         
-                        // Copiado silencioso
                         span.addEventListener('click', () => {
                             navigator.clipboard.writeText(email).then(() => {
                                 span.textContent = '✅ Copiado!';
@@ -1016,14 +1010,12 @@ function procesarTags(texto) {
                 }
             }
 
-            // --- C. ID PLAN DE PAGO (Burbuja Verde) ---
-            if (texto.startsWith('ID Plan de pago:') || texto.startsWith('ID de orden:')) {
+            // --- C. ID PLAN DE PAGO (Burbuja Verde - INCLUYE BRASIL) ---
+            if (texto.startsWith('ID Plan de pago:') || texto.startsWith('ID de orden:') || texto.startsWith('ID do Plano de Pagamento:')) {
                 if (!div.querySelector('.tellez-id-span')) {
                     const numMatch = texto.match(/\d+/);
                     if (numMatch) {
                         const idNum = numMatch[0];
-                        
-                        // Regla: Agregamos 'p' excepto si es ID de orden (VariousPlan)
                         const idCompleto = texto.startsWith('ID de orden:') ? idNum : "p" + idNum; 
                         const label = texto.split(':')[0];
 
@@ -1038,7 +1030,6 @@ function procesarTags(texto) {
                         span.addEventListener('mouseenter', () => span.style.background = 'rgba(16, 185, 129, 0.25)');
                         span.addEventListener('mouseleave', () => span.style.background = 'rgba(16, 185, 129, 0.15)');
                         
-                        // Copiado silencioso
                         span.addEventListener('click', () => {
                             navigator.clipboard.writeText(idCompleto).then(() => {
                                 span.textContent = '✅ Copiado!';
@@ -1053,7 +1044,7 @@ function procesarTags(texto) {
         // 2. TU CÓDIGO NATIVO ORIGINAL (SECUESTRO DE BOTONES "LLAMAR" Y "WA")
         const allSpans = Array.from(document.querySelectorAll('button span'));
         
-        // --- REEMPLAZAR "LLAMAR" POR "COPIAR" ---
+        // --- SECUESTRO: "LLAMAR" POR "COPIAR" ---
         const callSpans = allSpans.filter(s => (s.textContent || "").trim().toLowerCase() === "llamar" || s.textContent.trim().toLowerCase() === "contato telefônico" || s.textContent.trim().toLowerCase() === "contato telefonico");
         callSpans.forEach(span => {
             const botonOriginal = span.closest('button'); if (!botonOriginal || botonOriginal.dataset.hijacked) return;
@@ -1062,8 +1053,6 @@ function procesarTags(texto) {
                 const textoAnterior = containerAnterior.textContent || "";
                 const soloNumeros = textoAnterior.split(":")[1]?.trim().replace(/[^0-9]/g, '');
                 if (soloNumeros && soloNumeros.length >= countryInfo.digits) {
-                    
-                    // 🔥 EXCEPCIÓN ARGENTINA: Usar 549 solo para el botón de Copiar llamadas 🔥
                     let prefijoCopiar = prefixClean;
                     if (countryInfo.name === "Argentina") prefijoCopiar = "549";
                     
@@ -1080,7 +1069,7 @@ function procesarTags(texto) {
             }
         });
 
-        // --- REEMPLAZAR "WA" POR "TGM" ---
+        // --- SECUESTRO: "WA" POR "TGM" ---
         const waSpans = allSpans.filter(s => (s.textContent || "").trim() === "WA" || s.textContent.trim().toLowerCase() === "contato whatsapp");
         waSpans.forEach(span => {
             const botonOriginal = span.closest('button'); if (!botonOriginal || botonOriginal.dataset.hijacked) return;
@@ -1098,6 +1087,173 @@ function procesarTags(texto) {
                     };
                     botonOriginal.parentNode.replaceChild(nuevoBoton, botonOriginal);
                 }
+            }
+        });
+
+        // --- D. MINI CALCULADORA DE DESCUENTOS (DISEÑO NATIVO + TEXTOS DINÁMICOS) ---
+        const calcLabels = ['Solicitar ajuste de monto', 'Solicitar Liquidação', 'Solicitar reducción', 'Solicitar Redução'];
+        const calcSpans = allSpans.filter(span => calcLabels.includes(span.innerText.trim()));
+        
+        calcSpans.forEach(span => {
+            const btn = span.closest('button');
+            const container = btn ? btn.parentElement : null;
+
+            if (container && container.classList.contains('mb-10') && !container.querySelector('.tellez-calc-btn')) {
+                
+                if (container.style.display !== 'flex') {
+                    container.style.display = 'flex';
+                    container.style.alignItems = 'center';
+                    container.style.gap = '10px';
+                    container.style.flexWrap = 'wrap';
+                }
+
+                // Usamos las mismas clases nativas del CRM para que se vea igual a los botones azules
+                const calcBtn = document.createElement('button');
+                calcBtn.type = 'button';
+                calcBtn.className = 'el-button el-button--primary el-button--medium tellez-calc-btn';
+                calcBtn.title = 'Calculadora de Descuento';
+                calcBtn.style.marginTop = btn.style.marginTop || '20px';
+                
+                // SVG de calculadora blanco
+                calcBtn.innerHTML = `<span>
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;">
+                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                        <line x1="8" y1="6" x2="16" y2="6"></line>
+                        <line x1="16" y1="14" x2="16" y2="18"></line>
+                        <path d="M16 10h.01M12 10h.01M8 10h.01M8 14h.01M12 14h.01M8 18h.01M12 18h.01"></path>
+                    </svg>
+                </span>`;
+
+                calcBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Cerrar si ya existe
+                    const existente = document.getElementById('tellez-mini-calc');
+                    if (existente) { existente.remove(); return; }
+
+                    // --- FUNCIÓN EXTRACTORA (Lee los datos y el texto de la etiqueta EXACTO del DOM) ---
+                    const getDatosCRM = (etiquetas) => {
+                        const divs = Array.from(document.querySelectorAll("div.mb-10"));
+                        const divEncontrado = divs.find(d => etiquetas.some(l => d.innerText.includes(l)));
+                        if (!divEncontrado) return { label: etiquetas[0], valor: 0 };
+                        
+                        const spanValor = divEncontrado.querySelector('span[style*="color"]');
+                        const txtValor = spanValor ? spanValor.innerText : divEncontrado.innerText.split(':')[1];
+                        const txtLabel = divEncontrado.innerText.split(':')[0].trim();
+                        
+                        return {
+                            label: txtLabel,
+                            valor: parseFloat((txtValor || '').replace(/[^0-9.-]/g, '')) || 0
+                        };
+                    };
+
+                    const datosMora = getDatosCRM(["Cargo por mora", "Taxa de Atraso"]);
+                    const datosMonto = getDatosCRM(["Monto de pago", "Valor a Pagar", "Monto del contrato"]);
+
+                    // Detectar idioma para el título
+                    const isPortuguese = datosMora.label.toLowerCase().includes('taxa');
+                    const titleText = isPortuguese ? "Calculadora de desconto" : "Calculadora de descuento";
+                    const dctoLabel = isPortuguese ? "% Desc. na Taxa:" : "% Dcto a Mora:";
+
+                    // --- CONSTRUIR PANEL FLOTANTE ---
+                    const panel = document.createElement('div');
+                    panel.id = 'tellez-mini-calc';
+                    Object.assign(panel.style, {
+                        position: 'absolute', zIndex: '999999',
+                        background: 'rgba(240, 253, 244, 0.95)', border: '1px solid #10b981',
+                        borderRadius: '8px', padding: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                        width: '240px', display: 'flex', flexDirection: 'column', gap: '8px',
+                        fontFamily: 'sans-serif', backdropFilter: 'blur(10px)'
+                    });
+
+                    // Posicionar abajo del botón
+                    const rect = calcBtn.getBoundingClientRect();
+                    panel.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+                    panel.style.left = (rect.left + window.scrollX) + 'px';
+
+                    // HTML del panel, usando datosMonto.label y datosMora.label (SIN signos de $)
+                    panel.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #a7f3d0; padding-bottom:4px; margin-bottom:4px;">
+                            <strong style="color:#047857; font-size:13px;">${titleText}</strong>
+                            <span id="tellez-calc-close" style="cursor:pointer; color:#ef4444; font-size:18px; font-weight:bold; line-height:1;">×</span>
+                        </div>
+                        
+                        <div style="display:flex; justify-content:space-between; font-size:11px; color:#065f46; margin-bottom: 2px;">
+                            <span>${datosMonto.label}:</span> <strong>${datosMonto.valor.toFixed(2)}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:11px; color:#ef4444;">
+                            <span>${datosMora.label}:</span> <strong>${datosMora.valor.toFixed(2)}</strong>
+                        </div>
+                        
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px; background:rgba(16,185,129,0.1); padding:8px; border-radius:6px;">
+                            <span style="font-size:12px; color:#047857; font-weight:bold;">${dctoLabel}</span>
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <input type="number" id="tellez-calc-desc" value="20" min="0" max="100" style="width:55px; padding:4px; border:2px solid #10b981; border-radius:6px; outline:none; text-align:center; font-weight:bold; color:#047857; font-size:16px;">
+                                <span style="font-size:16px; color:#047857; font-weight:bold;">%</span>
+                            </div>
+                        </div>
+
+                        <div id="tellez-calc-result-box" style="background:#d1fae5; padding:10px; border-radius:6px; margin-top:8px; text-align:center; cursor:pointer; border:1px dashed #10b981; transition:all 0.2s;" title="Click para copiar">
+                            <span style="font-size:11px; color:#047857; display:block; font-weight:bold; margin-bottom: 2px;">RESULTADO FINAL A PAGAR</span>
+                            <strong id="tellez-calc-total" style="font-size:22px; color:#059669;">0.00</strong>
+                        </div>
+                    `;
+
+                    document.body.appendChild(panel);
+
+                    const inputDesc = document.getElementById('tellez-calc-desc');
+                    const spanTotal = document.getElementById('tellez-calc-total');
+                    const resultBox = document.getElementById('tellez-calc-result-box');
+                    let currentTotal = 0;
+
+                    // Foco inmediato al abrir para escribir rápido
+                    setTimeout(() => inputDesc.focus(), 50);
+
+                    // Lógica de actualización matemática
+                    const recalcular = () => {
+                        let desc = parseFloat(inputDesc.value) || 0;
+                        if (desc < 0) desc = 0;
+                        if (desc > 100) desc = 100;
+
+                        // Se descuenta el % SOLO a la mora, y se le suma al Monto Base
+                        const moraConDescuento = datosMora.valor * (1 - (desc / 100));
+                        currentTotal = datosMonto.valor + moraConDescuento;
+                        
+                        // Formatear sin signo de $
+                        spanTotal.innerText = currentTotal % 1 === 0 ? currentTotal : currentTotal.toFixed(2);
+                    };
+
+                    inputDesc.addEventListener('input', recalcular);
+                    recalcular(); // Ejecución inicial
+
+                    // Cerrar panel
+                    document.getElementById('tellez-calc-close').onclick = () => panel.remove();
+
+                    // Copiar al portapapeles
+                    resultBox.onmouseenter = () => resultBox.style.background = '#a7f3d0';
+                    resultBox.onmouseleave = () => resultBox.style.background = '#d1fae5';
+                    resultBox.onclick = () => {
+                        const valToCopy = spanTotal.innerText; 
+                        navigator.clipboard.writeText(valToCopy).then(() => {
+                            spanTotal.innerText = '✅ Copiado!';
+                            setTimeout(() => recalcular(), 1000);
+                        });
+                    };
+
+                    // Auto-cierre si se da clic fuera de la calculadora
+                    setTimeout(() => {
+                        const clickOutside = (ev) => {
+                            if (!panel.contains(ev.target) && !calcBtn.contains(ev.target)) {
+                                panel.remove();
+                                document.removeEventListener('click', clickOutside);
+                            }
+                        };
+                        document.addEventListener('click', clickOutside);
+                    }, 100);
+                };
+
+                container.appendChild(calcBtn);
             }
         });
     }
