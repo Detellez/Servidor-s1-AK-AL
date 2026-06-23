@@ -1010,7 +1010,7 @@ function procesarTags(texto) {
                 }
             }
 
-            // --- C. ID PLAN DE PAGO (Burbuja Verde - INCLUYE BRASIL) ---
+            // --- C. ID PLAN DE PAGO (Burbuja Verde) ---
             if (texto.startsWith('ID Plan de pago:') || texto.startsWith('ID de orden:') || texto.startsWith('ID do Plano de Pagamento:')) {
                 if (!div.querySelector('.tellez-id-span')) {
                     const numMatch = texto.match(/\d+/);
@@ -1041,7 +1041,7 @@ function procesarTags(texto) {
             }
         });
 
-        // 2. TU CÓDIGO NATIVO ORIGINAL (SECUESTRO DE BOTONES "LLAMAR" Y "WA")
+        // 2. SECUESTRO DE BOTONES "LLAMAR" Y "WA"
         const allSpans = Array.from(document.querySelectorAll('button span'));
         
         // --- SECUESTRO: "LLAMAR" POR "COPIAR" ---
@@ -1090,7 +1090,7 @@ function procesarTags(texto) {
             }
         });
 
-        // --- D. MINI CALCULADORA DE DESCUENTOS (DISEÑO NATIVO + TEXTOS DINÁMICOS) ---
+        // --- D. MINI CALCULADORA DE DESCUENTOS CON MEMORIA ---
         const calcLabels = ['Solicitar ajuste de monto', 'Solicitar Liquidação', 'Solicitar reducción', 'Solicitar Redução'];
         const calcSpans = allSpans.filter(span => calcLabels.includes(span.innerText.trim()));
         
@@ -1107,14 +1107,12 @@ function procesarTags(texto) {
                     container.style.flexWrap = 'wrap';
                 }
 
-                // Usamos las mismas clases nativas del CRM para que se vea igual a los botones azules
                 const calcBtn = document.createElement('button');
                 calcBtn.type = 'button';
                 calcBtn.className = 'el-button el-button--primary el-button--medium tellez-calc-btn';
                 calcBtn.title = 'Calculadora de Descuento';
                 calcBtn.style.marginTop = btn.style.marginTop || '20px';
                 
-                // SVG de calculadora blanco
                 calcBtn.innerHTML = `<span>
                     <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;">
                         <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
@@ -1128,11 +1126,9 @@ function procesarTags(texto) {
                     e.preventDefault();
                     e.stopPropagation();
 
-                    // Cerrar si ya existe
                     const existente = document.getElementById('tellez-mini-calc');
                     if (existente) { existente.remove(); return; }
 
-                    // --- FUNCIÓN EXTRACTORA (Lee los datos y el texto de la etiqueta EXACTO del DOM) ---
                     const getDatosCRM = (etiquetas) => {
                         const divs = Array.from(document.querySelectorAll("div.mb-10"));
                         const divEncontrado = divs.find(d => etiquetas.some(l => d.innerText.includes(l)));
@@ -1151,12 +1147,13 @@ function procesarTags(texto) {
                     const datosMora = getDatosCRM(["Cargo por mora", "Taxa de Atraso"]);
                     const datosMonto = getDatosCRM(["Monto de pago", "Valor a Pagar", "Monto del contrato"]);
 
-                    // Detectar idioma para el título
                     const isPortuguese = datosMora.label.toLowerCase().includes('taxa');
                     const titleText = isPortuguese ? "Calculadora de desconto" : "Calculadora de descuento";
                     const dctoLabel = isPortuguese ? "% Desc. na Taxa:" : "% Dcto a Mora:";
+                    
+                    // --- LEER DE LA MEMORIA EL ÚLTIMO DESCUENTO USADO (Por defecto 20) ---
+                    const savedDiscount = localStorage.getItem('tellez_calc_discount') || "20";
 
-                    // --- CONSTRUIR PANEL FLOTANTE ---
                     const panel = document.createElement('div');
                     panel.id = 'tellez-mini-calc';
                     Object.assign(panel.style, {
@@ -1167,12 +1164,10 @@ function procesarTags(texto) {
                         fontFamily: 'sans-serif', backdropFilter: 'blur(10px)'
                     });
 
-                    // Posicionar abajo del botón
                     const rect = calcBtn.getBoundingClientRect();
                     panel.style.top = (rect.bottom + window.scrollY + 8) + 'px';
                     panel.style.left = (rect.left + window.scrollX) + 'px';
 
-                    // HTML del panel, usando datosMonto.label y datosMora.label (SIN signos de $)
                     panel.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #a7f3d0; padding-bottom:4px; margin-bottom:4px;">
                             <strong style="color:#047857; font-size:13px;">${titleText}</strong>
@@ -1189,7 +1184,7 @@ function procesarTags(texto) {
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px; background:rgba(16,185,129,0.1); padding:8px; border-radius:6px;">
                             <span style="font-size:12px; color:#047857; font-weight:bold;">${dctoLabel}</span>
                             <div style="display:flex; align-items:center; gap:4px;">
-                                <input type="number" id="tellez-calc-desc" value="20" min="0" max="100" style="width:55px; padding:4px; border:2px solid #10b981; border-radius:6px; outline:none; text-align:center; font-weight:bold; color:#047857; font-size:16px;">
+                                <input type="number" id="tellez-calc-desc" value="${savedDiscount}" min="0" max="100" style="width:55px; padding:4px; border:2px solid #10b981; border-radius:6px; outline:none; text-align:center; font-weight:bold; color:#047857; font-size:16px;">
                                 <span style="font-size:16px; color:#047857; font-weight:bold;">%</span>
                             </div>
                         </div>
@@ -1207,30 +1202,27 @@ function procesarTags(texto) {
                     const resultBox = document.getElementById('tellez-calc-result-box');
                     let currentTotal = 0;
 
-                    // Foco inmediato al abrir para escribir rápido
                     setTimeout(() => inputDesc.focus(), 50);
 
-                    // Lógica de actualización matemática
                     const recalcular = () => {
                         let desc = parseFloat(inputDesc.value) || 0;
                         if (desc < 0) desc = 0;
                         if (desc > 100) desc = 100;
 
-                        // Se descuenta el % SOLO a la mora, y se le suma al Monto Base
+                        // --- GUARDAR EN MEMORIA PARA OTRAS PESTAÑAS ---
+                        localStorage.setItem('tellez_calc_discount', desc.toString());
+
                         const moraConDescuento = datosMora.valor * (1 - (desc / 100));
                         currentTotal = datosMonto.valor + moraConDescuento;
                         
-                        // Formatear sin signo de $
                         spanTotal.innerText = currentTotal % 1 === 0 ? currentTotal : currentTotal.toFixed(2);
                     };
 
                     inputDesc.addEventListener('input', recalcular);
-                    recalcular(); // Ejecución inicial
+                    recalcular(); 
 
-                    // Cerrar panel
                     document.getElementById('tellez-calc-close').onclick = () => panel.remove();
 
-                    // Copiar al portapapeles
                     resultBox.onmouseenter = () => resultBox.style.background = '#a7f3d0';
                     resultBox.onmouseleave = () => resultBox.style.background = '#d1fae5';
                     resultBox.onclick = () => {
@@ -1241,7 +1233,6 @@ function procesarTags(texto) {
                         });
                     };
 
-                    // Auto-cierre si se da clic fuera de la calculadora
                     setTimeout(() => {
                         const clickOutside = (ev) => {
                             if (!panel.contains(ev.target) && !calcBtn.contains(ev.target)) {
