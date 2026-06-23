@@ -592,6 +592,16 @@ function procesarTags(texto) {
         const currentUrl = window.location.href;
         const esRutaDetalle = RUTAS_PERMITIDAS.some(path => currentUrl.includes(path));
 
+        // 🔥 SINCRONIZACIÓN ENTRE PESTAÑAS (Se adjunta una sola vez para no duplicar procesos)
+        if (!window.customBtnsSyncAttached) {
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'CUSTOM_BTNS_MINIMIZED') {
+                    renderizarBotonesCustom();
+                }
+            });
+            window.customBtnsSyncAttached = true;
+        }
+
         if (!esRutaDetalle) { if (container) container.remove(); return; }
         if (!container) {
             container = document.createElement('div'); container.id = containerId;
@@ -599,9 +609,19 @@ function procesarTags(texto) {
             document.body.appendChild(container);
         }
         container.innerHTML = ''; 
+
+        // 1. Botón "Crear Plantilla" SIEMPRE VISIBLE abajo del todo
         const btnCrear = document.createElement("div"); btnCrear.innerText = "➕ Crear Plantilla";
         applyGlassPillStyle(btnCrear, '#38bdf8'); btnCrear.style.pointerEvents = 'auto'; btnCrear.onclick = () => mostrarModalCreacion(null);
         container.appendChild(btnCrear);
+
+        // 2. Contenedor interno que agrupa solo las plantillas guardadas
+        const innerWrapper = document.createElement('div');
+        Object.assign(innerWrapper.style, { display: 'flex', flexDirection: 'column-reverse', alignItems: 'flex-end', gap: '4px' });
+        
+        const isMinimized = localStorage.getItem('CUSTOM_BTNS_MINIMIZED') === 'true';
+        if (isMinimized) { innerWrapper.style.display = 'none'; }
+        
         const botonesGuardados = JSON.parse(localStorage.getItem('CUSTOM_BTNS_LIST') || "[]");
         botonesGuardados.forEach(b => {
             const row = document.createElement("div"); row.style.display = "flex"; row.style.alignItems = "center"; row.style.justifyContent = "flex-end"; row.style.gap = "2px"; row.style.pointerEvents = 'auto'; 
@@ -623,8 +643,78 @@ function procesarTags(texto) {
             const btnAction = document.createElement("div"); btnAction.innerText = b.nombre;
             applyGlassPillStyle(btnAction, '#a855f7');
             btnAction.onclick = () => { navigator.clipboard.writeText(procesarTags(b.contenido)).then(() => mostrarAvisoTemporal(`Copiado: ${b.nombre} ✅`)); };
-            row.appendChild(toolsPanel); row.appendChild(btnAction); container.appendChild(row);
+            row.appendChild(toolsPanel); row.appendChild(btnAction); 
+            innerWrapper.appendChild(row);
         });
+
+        container.appendChild(innerWrapper);
+
+        // 3. Botón de Ocultar/Mostrar (Exactamente del mismo alto que las plantillas)
+        if (botonesGuardados.length > 0) {
+            const btnToggle = document.createElement("div");
+            
+            // Usamos la MISMA función base para que tenga la misma textura, bordes y fondo que las plantillas
+            applyGlassPillStyle(btnToggle);
+
+            const updateToggleVisuals = (minimized, isHovering = false) => {
+                btnToggle.innerHTML = minimized ? "▲▲" : "▼▼";
+                btnToggle.title = minimized ? "Mostrar plantillas" : "Ocultar plantillas";
+                
+                const targetColor = minimized ? '#10b981' : '#ef4444'; // Verde neón para expandir, Rojo neón para ocultar
+                
+                if (isHovering) {
+                    btnToggle.style.color = targetColor;
+                    btnToggle.style.borderColor = targetColor;
+                    btnToggle.style.boxShadow = `0 4px 15px ${targetColor}60`; // Resplandor neón
+                    btnToggle.style.transform = minimized ? 'translateY(-2px)' : 'translateY(2px)'; 
+                } else {
+                    btnToggle.style.color = '#cbd5e1'; // Gris clarito por defecto
+                    btnToggle.style.borderColor = 'rgba(255,255,255,0.2)';
+                    btnToggle.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+                    btnToggle.style.transform = 'translateY(0)';
+                }
+            };
+
+            // Sobrescribimos solo el tamaño para hacerlo un óvalo pequeño perfecto
+            Object.assign(btnToggle.style, { 
+                pointerEvents: 'auto', 
+                width: '45px',        // Ancho suficiente para las dos flechitas
+                height: '33px',       // 🔥 EXACTAMENTE LA MISMA ALTURA QUE LAS PLANTILLAS (33px)
+                padding: '0', 
+                borderRadius: '20px', 
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                fontSize: '12px', letterSpacing: '1px', 
+                marginBottom: '2px', marginRight: '5px',
+                transition: 'all 0.25s ease'
+            });
+
+            // Seteamos el estado inicial sin hover
+            updateToggleVisuals(isMinimized, false);
+
+            btnToggle.onmouseenter = () => { 
+                const currentlyMinimized = localStorage.getItem('CUSTOM_BTNS_MINIMIZED') === 'true';
+                updateToggleVisuals(currentlyMinimized, true);
+            };
+            
+            btnToggle.onmouseleave = () => { 
+                const currentlyMinimized = localStorage.getItem('CUSTOM_BTNS_MINIMIZED') === 'true';
+                updateToggleVisuals(currentlyMinimized, false);
+            };
+
+            btnToggle.onclick = () => {
+                const currentlyMinimized = localStorage.getItem('CUSTOM_BTNS_MINIMIZED') === 'true';
+                const newMinimizedState = !currentlyMinimized;
+                
+                // Guardamos en LocalStorage. Esto dispara el evento 'storage' en TODAS las demás pestañas.
+                localStorage.setItem('CUSTOM_BTNS_MINIMIZED', newMinimizedState.toString());
+                innerWrapper.style.display = newMinimizedState ? 'none' : 'flex';
+                
+                // Actualizamos visuales en esta misma pestaña
+                updateToggleVisuals(newMinimizedState, true);
+            };
+            
+            container.appendChild(btnToggle);
+        }
     }
 
     // 5. NUEVO PANEL DE HERRAMIENTAS
