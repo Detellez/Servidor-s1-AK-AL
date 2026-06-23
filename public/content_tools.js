@@ -940,27 +940,126 @@ function procesarTags(texto) {
     }
     // 6. MEJORAS NATIVAS
 
-    function renderizarMejorasNativas() {
-        const countryInfo = getCountryData(); const prefixClean = countryInfo.prefix.replace('+', ''); 
+   function renderizarMejorasNativas() {
+        const countryInfo = getCountryData(); 
+        const prefixClean = countryInfo.prefix.replace('+', ''); 
+
+        // 1. INYECTAR BURBUJAS ESTILO TELLEZ (TELÉFONO, CORREO E ID EN VERDE)
         document.querySelectorAll('div.mb-10').forEach(div => {
-            const texto = (div.textContent || "").trim(); // 🔥 MAGIA
-            const crearBotonEmoji = (textoACopiar, title = "Copiar") => {
-                const btn = document.createElement('button'); btn.innerHTML = '📋'; btn.title = title; btn.style.cssText = COPY_ICON_STYLE;
-                btn.onmouseenter = () => btn.style.transform = "scale(1.2)"; btn.onmouseleave = () => btn.style.transform = "scale(1)";
-                btn.onclick = (e) => { e.stopPropagation(); navigator.clipboard.writeText(textoACopiar).then(() => mostrarAvisoTemporal(`Copiado: ${textoACopiar} 📋`, 1500)); };
-                return btn;
-            };
-            if ((texto.startsWith("Correo electrónico") || texto.startsWith("E-mail Pessoal")) && !div.classList.contains('js-copy-added')) {
-                const mailClean = texto.split(":")[1]?.trim(); if (mailClean && mailClean.includes("@")) { div.classList.add('js-copy-added'); div.prepend(crearBotonEmoji(mailClean, "Copiar correo")); }
+            const texto = (div.textContent || "").trim(); 
+            
+            // --- A. TELÉFONO CLIENTE (Burbuja Verde) ---
+            if (texto.startsWith('Teléfono:') || texto.startsWith('Celular Pessoal:')) {
+                if (!div.querySelector('.tellez-tel-prefijo')) {
+                    const numMatch = texto.match(/\d{7,15}/);
+                    if (numMatch) {
+                        const numOriginal = numMatch[0];
+                        const numCompleto = prefixClean + numOriginal; // Este es el que se copia
+                        
+                        // Guardar número original por seguridad para extracciones
+                        div.setAttribute('data-tel-original', numOriginal);
+                        const label = texto.split(':')[0];
+                        
+                        // Se muestra SOLO el numOriginal en la interfaz
+                        div.innerHTML = `${label}: <span class="tellez-tel-prefijo" style="
+                            color:#047857; font-weight:bold; cursor:pointer;
+                            background:rgba(16, 185, 129, 0.15); border-radius:4px;
+                            padding:1px 6px; border:1px solid rgba(16, 185, 129, 0.3);
+                            user-select:all; transition:background .2s;
+                        " title="Click para copiar (Prefijo incluido)">${numOriginal}</span>`;
+
+                        const span = div.querySelector('.tellez-tel-prefijo');
+                        span.addEventListener('mouseenter', () => span.style.background = 'rgba(16, 185, 129, 0.25)');
+                        span.addEventListener('mouseleave', () => span.style.background = 'rgba(16, 185, 129, 0.15)');
+                        
+                        // Copiado silencioso
+                        span.addEventListener('click', () => {
+                            // Copia el número CON prefijo
+                            navigator.clipboard.writeText(numCompleto).then(() => {
+                                span.textContent = '✅ Copiado!';
+                                // Regresa a mostrar el número SIN prefijo
+                                setTimeout(() => { span.textContent = numOriginal; }, 1500);
+                            });
+                        });
+                    }
+                }
+            }
+
+            // --- B. CORREO ELECTRÓNICO (Burbuja Verde) ---
+            const esCorreo = texto.toLowerCase().includes('correo') || texto.toLowerCase().includes('e-mail') || texto.toLowerCase().includes('email');
+            if (esCorreo && !texto.startsWith('APP:')) {
+                if (!div.querySelector('.tellez-email-span')) {
+                    const emailMatch = texto.match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i);
+                    if (emailMatch) {
+                        const email = emailMatch[0];
+                        const label = texto.replace(email, '').replace(':', '').trim();
+                        
+                        div.innerHTML = `${label}: <span class="tellez-email-span" style="
+                            color:#047857; font-weight:bold; cursor:pointer;
+                            background:rgba(16, 185, 129, 0.15); border-radius:4px;
+                            padding:1px 6px; border:1px solid rgba(16, 185, 129, 0.3);
+                            user-select:all; transition:background .2s;
+                        " title="Click para copiar">${email}</span>`;
+
+                        const span = div.querySelector('.tellez-email-span');
+                        span.addEventListener('mouseenter', () => span.style.background = 'rgba(16, 185, 129, 0.25)');
+                        span.addEventListener('mouseleave', () => span.style.background = 'rgba(16, 185, 129, 0.15)');
+                        
+                        // Copiado silencioso
+                        span.addEventListener('click', () => {
+                            navigator.clipboard.writeText(email).then(() => {
+                                span.textContent = '✅ Copiado!';
+                                setTimeout(() => { span.textContent = email; }, 1500);
+                            });
+                        });
+                    }
+                }
+            }
+
+            // --- C. ID PLAN DE PAGO (Burbuja Verde) ---
+            if (texto.startsWith('ID Plan de pago:') || texto.startsWith('ID de orden:')) {
+                if (!div.querySelector('.tellez-id-span')) {
+                    const numMatch = texto.match(/\d+/);
+                    if (numMatch) {
+                        const idNum = numMatch[0];
+                        
+                        // Regla: Agregamos 'p' excepto si es ID de orden (VariousPlan)
+                        const idCompleto = texto.startsWith('ID de orden:') ? idNum : "p" + idNum; 
+                        const label = texto.split(':')[0];
+
+                        div.innerHTML = `${label}: <span class="tellez-id-span" style="
+                            color:#047857; font-weight:bold; cursor:pointer;
+                            background:rgba(16, 185, 129, 0.15); border-radius:4px;
+                            padding:1px 6px; border:1px solid rgba(16, 185, 129, 0.3);
+                            user-select:all; transition:background .2s;
+                        " title="Click para copiar">${idCompleto}</span>`;
+
+                        const span = div.querySelector('.tellez-id-span');
+                        span.addEventListener('mouseenter', () => span.style.background = 'rgba(16, 185, 129, 0.25)');
+                        span.addEventListener('mouseleave', () => span.style.background = 'rgba(16, 185, 129, 0.15)');
+                        
+                        // Copiado silencioso
+                        span.addEventListener('click', () => {
+                            navigator.clipboard.writeText(idCompleto).then(() => {
+                                span.textContent = '✅ Copiado!';
+                                setTimeout(() => { span.textContent = idCompleto; }, 1500);
+                            });
+                        });
+                    }
+                }
             }
         });
+
+        // 2. TU CÓDIGO NATIVO ORIGINAL (SECUESTRO DE BOTONES "LLAMAR" Y "WA")
         const allSpans = Array.from(document.querySelectorAll('button span'));
-        const callSpans = allSpans.filter(s => (s.textContent || "").trim().toLowerCase() === "llamar" || s.textContent.trim().toLowerCase() === "contato telefônico" || s.textContent.trim().toLowerCase() === "contato telefonico"); // 🔥 MAGIA
+        
+        // --- REEMPLAZAR "LLAMAR" POR "COPIAR" ---
+        const callSpans = allSpans.filter(s => (s.textContent || "").trim().toLowerCase() === "llamar" || s.textContent.trim().toLowerCase() === "contato telefônico" || s.textContent.trim().toLowerCase() === "contato telefonico");
         callSpans.forEach(span => {
             const botonOriginal = span.closest('button'); if (!botonOriginal || botonOriginal.dataset.hijacked) return;
             const containerActual = botonOriginal.closest('div.mb-10'); const containerAnterior = containerActual ? containerActual.previousElementSibling : null;
             if (containerAnterior && containerAnterior.classList.contains('mb-10')) {
-                const textoAnterior = containerAnterior.textContent || ""; // 🔥 MAGIA
+                const textoAnterior = containerAnterior.textContent || "";
                 const soloNumeros = textoAnterior.split(":")[1]?.trim().replace(/[^0-9]/g, '');
                 if (soloNumeros && soloNumeros.length >= countryInfo.digits) {
                     
@@ -972,23 +1071,31 @@ function procesarTags(texto) {
                     
                     botonOriginal.dataset.hijacked = "true"; span.innerText = "Copiar";
                     const nuevoBoton = botonOriginal.cloneNode(true);
-                    nuevoBoton.onclick = (e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(numeroFinal).then(() => mostrarAvisoTemporal(`Copiado: ${numeroFinal} 📋`, 1500)); };
+                    nuevoBoton.onclick = (e) => { 
+                        e.preventDefault(); e.stopPropagation(); 
+                        navigator.clipboard.writeText(numeroFinal).then(() => mostrarAvisoTemporal(`Copiado: ${numeroFinal} 📋`, 1500)); 
+                    };
                     botonOriginal.parentNode.replaceChild(nuevoBoton, botonOriginal);
                 }
             }
         });
-        const waSpans = allSpans.filter(s => (s.textContent || "").trim() === "WA" || s.textContent.trim().toLowerCase() === "contato whatsapp"); // 🔥 MAGIA
+
+        // --- REEMPLAZAR "WA" POR "TGM" ---
+        const waSpans = allSpans.filter(s => (s.textContent || "").trim() === "WA" || s.textContent.trim().toLowerCase() === "contato whatsapp");
         waSpans.forEach(span => {
             const botonOriginal = span.closest('button'); if (!botonOriginal || botonOriginal.dataset.hijacked) return;
             const containerActual = botonOriginal.closest('div.mb-10'); const containerAnterior = containerActual ? containerActual.previousElementSibling : null;
             if (containerAnterior && containerAnterior.classList.contains('mb-10')) {
-                const textoAnterior = containerAnterior.textContent || ""; // 🔥 MAGIA
+                const textoAnterior = containerAnterior.textContent || "";
                 const soloNumeros = textoAnterior.split(":")[1]?.trim().replace(/[^0-9]/g, '');
                 if (soloNumeros && soloNumeros.length >= countryInfo.digits) {
                     const numeroTG = prefixClean + soloNumeros.slice(-countryInfo.digits);
                     botonOriginal.dataset.hijacked = "true"; span.innerText = "TGM";
                     const nuevoBoton = botonOriginal.cloneNode(true); nuevoBoton.title = "Abrir en Telegram";
-                    nuevoBoton.onclick = (e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `tg://resolve?phone=${numeroTG}`; };
+                    nuevoBoton.onclick = (e) => { 
+                        e.preventDefault(); e.stopPropagation(); 
+                        window.location.href = `tg://resolve?phone=${numeroTG}`; 
+                    };
                     botonOriginal.parentNode.replaceChild(nuevoBoton, botonOriginal);
                 }
             }
@@ -1361,6 +1468,10 @@ function renderizarBotonSoporteNativo() {
         const btnSoporte = document.getElementById('btn-soporte-nativo'); if (btnSoporte) { btnSoporte.closest('div.mb-10')?.remove(); }
     }
 
+    // ⚡ VARIABLES PARA EL OBSERVADOR ULTRARÁPIDO
+    let fastObserver = null;
+    let renderTimeout = null;
+
     function iniciarHerramientas() {
         if (!document.body) return;
         const currentUrl = window.location.href;
@@ -1372,14 +1483,29 @@ function renderizarBotonSoporteNativo() {
             injectToolsPanel(); 
             renderizarBotonesCustom();
             renderizarBotonSoporteNativo();
-            setTimeout(renderizarMejorasNativas, 500); 
             
-            // 🔥 FOTOGRAFÍA MEJORADA: Guardamos la cantidad de CARACTERES para detectar cuando Vue.js inyecta los números
+            // ⚡ Ejecutar INMEDIATAMENTE (Eliminamos el setTimeout de 500ms)
+            renderizarMejorasNativas(); 
+            
+            // ⚡ Iniciar Observador Ultrarápido: Dispara "al toque" cuando Vue.js inyecta el DOM
+            if (fastObserver) fastObserver.disconnect();
+            fastObserver = new MutationObserver(() => {
+                // Micro-espera de 50ms para procesar en lote y no congelar la pestaña
+                clearTimeout(renderTimeout);
+                renderTimeout = setTimeout(() => {
+                    if (crmTieneDatosReales()) {
+                        renderizarMejorasNativas();
+                    }
+                }, 50);
+            });
+            fastObserver.observe(document.body, { childList: true, subtree: true });
+
             let totalCaracteres = 0;
             document.querySelectorAll('div.mb-10').forEach(d => totalCaracteres += (d.textContent || "").trim().length);
             document.body.dataset.crmTextCount = totalCaracteres;
         } else {
             limpiarTodo();
+            if (fastObserver) fastObserver.disconnect();
         }
     }
 
@@ -1396,60 +1522,49 @@ function renderizarBotonSoporteNativo() {
     // =============================================================================
     
     let lastUrl = location.href; 
-    let timeoutID;
-    let intentoCarga = 0;
     
     function crmTieneDatosReales() {
         const valTelefono = getTextAfterLabel(["Teléfono", "Celular Pessoal"]).replace(/[^0-9]/g, '');
         return valTelefono.length >= 8; 
     }
 
-    // 🔥 NUEVA FUNCIÓN: Atrapa las referencias leyendo los caracteres inyectados por Vue.js
     function revisarReferenciasRezagadas() {
         const panel = document.getElementById('panel-tools-content');
         if (!panel || !crmTieneDatosReales()) return;
         
         const panelRoto = panel.innerHTML.includes('not-allowed');
         
-        // Sumamos todos los caracteres actuales del CRM
         let caracteresActuales = 0;
         document.querySelectorAll('div.mb-10').forEach(d => caracteresActuales += (d.textContent || "").trim().length);
         const caracteresGuardados = parseInt(document.body.dataset.crmTextCount || 0);
         
-        // Si hay más texto que antes (margen de 5 por espacios), significa que aparecieron los números
         if (panelRoto || caracteresActuales > (caracteresGuardados + 5)) {
-            console.log("⚡ Redibujando Panel: Vue.js cargó nuevos números de referencias.");
-            document.body.dataset.crmTextCount = caracteresActuales; // Actualiza la foto
+            document.body.dataset.crmTextCount = caracteresActuales; 
             iniciarHerramientas();
         }
     }
 
     // =========================================================================
-    // 🔥 EL MOTOR INDESTRUCTIBLE (SOPORTA 100+ PESTAÑAS EN SEGUNDO PLANO) 🔥
+    // 🔥 EL MOTOR INDESTRUCTIBLE (VERSIÓN ACELERADA) 🔥
     // =========================================================================
 
-    // BUCLE PRINCIPAL: Nunca se rinde, pregunta cada 2 segundos si hay datos.
+    // ⚡ Reducido de 2000ms a 300ms: Se da cuenta de los cambios al instante
     setInterval(() => {
-        // 1. Si el usuario cambió de cliente, limpiamos las herramientas viejas
         if (location.href !== lastUrl) {
             lastUrl = location.href;
             limpiarTodo();
+            if (fastObserver) fastObserver.disconnect();
         }
 
-        // 2. Solo actuamos si el CRM ya cargó datos reales en la pantalla
         if (crmTieneDatosReales()) {
-            // Si el panel de herramientas no existe, lo inyectamos de cero
             if (!document.getElementById('wrapper-tools-panel')) {
                 iniciarHerramientas();
             } else {
-                // Si el panel ya existe, atrapamos referencias rezagadas y botones (Copiar/TGM)
-                renderizarMejorasNativas();
                 revisarReferenciasRezagadas();
             }
         }
-    }, 2000); // Se ejecuta cada 2 segundos de forma perpetua
+    }, 300); 
 
-    // 3. RESPUESTA TÁCTICA: Cuando haces clic y "despiertas" la pestaña
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden && crmTieneDatosReales()) {
             if (!document.getElementById('wrapper-tools-panel')) {
