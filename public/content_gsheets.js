@@ -450,5 +450,98 @@
             setTimeout(buildPanel, 1500);
         }
     }).observe(document, { subtree: true, childList: true });
+// =======================================================================
+    // 🔥 INYECCIÓN DE TELÉFONOS DESDE MEMORIA RAFAGA A LA TABLA PRINCIPAL 🔥
+    // =======================================================================
+    function inyectarBurbujasGrisRafaga() {
+        // 1. Obtenemos la memoria extraída por el Modo Manager (LOTE_RAFAGA)
+        const loteRaw = localStorage.getItem('LOTE_RAFAGA');
+        if (!loteRaw) return;
+        
+        let lote;
+        try { lote = JSON.parse(loteRaw); } catch(e) { return; }
+        if (!Array.isArray(lote) || lote.length === 0) return;
 
+        // Creamos un diccionario rápido para buscar por ID Plan (ej: "p290497")
+        const mapaRafaga = new Map();
+        lote.forEach(c => {
+            if (c.idPlan && c.telefono) {
+                mapaRafaga.set(c.idPlan.trim().toLowerCase(), c);
+            }
+        });
+
+        // 2. Escaneamos todas las filas de la tabla nativa del CRM
+        document.querySelectorAll('.el-table__row').forEach(row => {
+            // Ubicamos las celdas exactas según tu HTML de referencia
+            const celdaId = row.querySelector('.el-table_1_column_4 .cell');
+            const celdaTel = row.querySelector('.el-table_1_column_7 .cell');
+
+            if (celdaId && celdaTel) {
+                const idPlan = celdaId.textContent.trim().toLowerCase();
+                
+                // Si el ID de la fila existe en nuestra memoria de Ráfaga
+                if (mapaRafaga.has(idPlan)) {
+                    // Evitamos inyectar si ya lo hicimos antes
+                    if (celdaTel.querySelector('.tellez-tel-gris')) return;
+
+                    const datosCliente = mapaRafaga.get(idPlan);
+                    const telCompleto = String(datosCliente.telefono).replace('+', '').trim(); // Número CON prefijo
+                    
+                    // Deducimos el prefijo para ocultarlo visualmente
+                    let prefijo = "";
+                    if (telCompleto.startsWith('549')) prefijo = '549';
+                    else if (/^(57|52|56|51|55|54)/.test(telCompleto)) {
+                        prefijo = telCompleto.substring(0, 2);
+                    }
+                    
+                    // Separamos el número sin el prefijo
+                    const telSinPrefijo = prefijo ? telCompleto.substring(prefijo.length) : telCompleto;
+
+                    // Inyectamos la burbuja gris reemplazando los asteriscos
+                    celdaTel.innerHTML = `<span class="tellez-tel-gris" style="
+                        color: #475569; font-weight: 500; cursor: pointer;
+                        background: #f8fafc; border-radius: 4px;
+                        padding: 3px 8px; border: 1px solid #e2e8f0;
+                        user-select: all; transition: all 0.2s ease; display: inline-block;
+                        font-family: system-ui, -apple-system, sans-serif;
+                    " title="Click para copiar (Se copiará como: ${telCompleto})">${telSinPrefijo}</span>`;
+
+                    const span = celdaTel.querySelector('.tellez-tel-gris');
+                    
+                    // Efecto Hover suave (gris un poco más oscuro)
+                    span.addEventListener('mouseenter', () => {
+                        span.style.background = '#f1f5f9';
+                        span.style.borderColor = '#cbd5e1';
+                    });
+                    span.addEventListener('mouseleave', () => {
+                        span.style.background = '#f8fafc';
+                        span.style.borderColor = '#e2e8f0';
+                    });
+                    
+                    // Evento Copiar (Al toque y con el prefijo incluido)
+                    span.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(telCompleto).then(() => {
+                            // Feedback visual verde temporal
+                            span.textContent = '✅ Copiado!';
+                            span.style.color = '#047857';
+                            span.style.background = '#d1fae5';
+                            span.style.borderColor = '#10b981';
+                            
+                            // Regresa a su estado gris y sin prefijo original
+                            setTimeout(() => { 
+                                span.textContent = telSinPrefijo; 
+                                span.style.color = '#475569';
+                                span.style.background = '#f8fafc';
+                                span.style.borderColor = '#e2e8f0';
+                            }, 1500);
+                        });
+                    });
+                }
+            }
+        });
+    }
+
+    // 3. Motor de arranque continuo (Lo revisará cada medio segundo por si pasas de página)
+    setInterval(inyectarBurbujasGrisRafaga, 500);
 })();
