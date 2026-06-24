@@ -1262,7 +1262,9 @@
                 <div style="display:flex; align-items:center; gap:8px;">
                     <button type="button" id="btn-limpiar-lote" class="btn-rafaga btn-red" title="Limpiar Base">🗑️</button>
                     <button type="button" id="btn-descargar-contactos" class="btn-rafaga btn-orange" title="Descargar CSV">👥</button>
-                    
+                    <button type="button" id="btn-descargar-contacto" class="btn-rafaga" style="background: #166534; color: white; transition: all 0.3s;" title="Copiar Contactos" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 0 12px #166534, 0 0 20px #166534';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </button>
                     <button type="button" id="btn-extraer-todo" class="btn-rafaga btn-green">⚡Extraer Todo⚡</button>
                 </div>
                 <div style="display:flex; gap:10px;">
@@ -1342,7 +1344,45 @@
                     }
                 };
             }
+            document.getElementById('btn-descargar-contacto').onclick = (e) => {
+                e.stopPropagation();
+                let lote = obtenerLoteFiltrado();
+                if (lote.length === 0) return mostrarAviso('No hay contactos', '#fbbf24', 'warning');
+                
+                let filas = [];
+                
+                // Encabezado separado por tabulaciones para pegar directo en Excel
+                filas.push("ID PLAN\tNOMBRE\tAPP\tPRODUCTO\tDEUDA TOTAL\tPRORROGA\tDIAS MORA\tCARGO POR MORA\tMONTO CONTRATO\tNUMERO\tREFERENCIA 1\tREFERENCIA 2");
 
+                lote.forEach(c => {
+                    let tel = c.telefono ? c.telefono.replace('+', '').trim() : '';
+                    let r1 = c.ref1 ? c.ref1.replace('+', '').trim() : '';
+                    let r2 = c.ref2 ? c.ref2.replace('+', '').trim() : '';
+
+                    let fila = [
+                        c.idPlan || '',
+                        c.nombre || '',
+                        c.app || '',
+                        c.producto || '',
+                        c.monto || '0',
+                        c.importeReinv || '0',
+                        c.diasMora || '0',
+                        c.cargoMora || '0',
+                        c.montoPago || '0',
+                        tel,
+                        r1,
+                        r2
+                    ];
+                    filas.push(fila.join('\t')); // \t crea las columnas al pegar en Excel
+                });
+
+                navigator.clipboard.writeText(filas.join('\n')).then(() => {
+                    mostrarAviso(`¡${lote.length} filas copiadas con éxito! 📋`, '#f59e0b', 'success');
+                }).catch(err => {
+                    console.error("Error al copiar: ", err);
+                    mostrarAviso('Error al copiar al portapapeles', '#ef4444', 'error');
+                });
+            };
             document.getElementById('btn-descargar-contactos').onclick = (e) => {
                 e.stopPropagation();
                 let lote = obtenerLoteFiltrado();
