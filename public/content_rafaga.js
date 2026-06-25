@@ -511,6 +511,9 @@
                         if (jsonList?.data?.pages) totalPages = jsonList.data.pages;
 
                         todosLosRegistrosBrutos.push(...registros);
+                        
+                        // 🔥 Contador visual para la precarga (Fase 1)
+                        if (btnExtraer) btnExtraer.innerText = `📥 Recopilando lista índice: ${todosLosRegistrosBrutos.length} clientes...`;
 
                         page++;
                         if (page > maxPagesPerRun || page > totalPages) break;
@@ -581,18 +584,22 @@
             }
 
             // 🔥 INICIA EXTRACCIÓN TURBO (CHUNKS) 🔥
+            // 🔥 INICIA EXTRACCIÓN CON POOL DE CONEXIONES (VELOCIDAD DE LA LUZ) 🔥
             if (btnExtraer) btnExtraer.innerText = `⏳ Procesando 0 / ${registrosAProcesar.length}...`;
             let procesadosExitosos = 0;
             const maxDetailCallsPerRun = 6000; 
             let detailCalls = 0;
-            
             let todosLosNuevosDatos = []; 
-            const TAMANO_PAQUETE = 15; 
+            
+            let indiceGlobal = 0; // La fila de clientes
+            const CONCURRENCIA_MAXIMA = 15; // 15 trabajadores invisibles
 
-            for (let i = 0; i < registrosAProcesar.length; i += TAMANO_PAQUETE) {
-                const paquete = registrosAProcesar.slice(i, i + TAMANO_PAQUETE);
-                
-                const promesasPaquete = paquete.map(async (c) => {
+            const trabajadorInvisible = async () => {
+                while (indiceGlobal < registrosAProcesar.length) {
+                    const c = registrosAProcesar[indiceGlobal++]; // Toma el siguiente de la fila y avanza
+                    
+                    if (!c) continue;
+
                     let correo = c.email || "";
                     let telefono = String(c.phone || "");
                     let extension = c.extensionAmount || c.totalExtensionAmount || "";
@@ -635,7 +642,6 @@
                                     dniUrl = detJson.data.idNoUrl || dniUrl;
                                     selfUrl = detJson.data.livingNessUrl || selfUrl;
                                     
-                                    // 🔥 EXTRACCIÓN DE REFERENCIAS (BLINDADO) 🔥
                                     let arrayContactos = detJson.data.contacts || detJson.data.contactList || detJson.data.linkmanList || [];
                                     if (arrayContactos.length > 0) {
                                         ref1 = String(arrayContactos[0].phoneNumber || arrayContactos[0].phone || "");
@@ -663,7 +669,7 @@
                     const ref2Limpio = ref2.replace(/[^0-9]/g, '');
                     const ref2Final = ref2Limpio ? (ref2Limpio.length >= countryInfo.digits ? (prefixClean + ref2Limpio.slice(-countryInfo.digits)) : (prefixClean + ref2Limpio)) : '';
 
-                    return {
+                    todosLosNuevosDatos.push({
                         idPlan: idPlan, telefono: telefonoFinal, nombre: c.userName || c.name || "",
                         app: c.appName || "", correo: correo, producto: c.productName || "",
                         monto: String(c.repayAmount || c.totalAmount || ""), importeReinv: String(extension),
@@ -672,17 +678,20 @@
                         isRepay: c.isRepay, cuenta: c.urgeUserName || "Sin Asignar",
                         linkDescarga: linkDescarga, dniUrl: dniUrl, selfUrl: selfUrl,
                         ref1: ref1Final, ref2: ref2Final 
-                    };
-                });
+                    });
 
-                const resultadosDelPaquete = await Promise.all(promesasPaquete);
-                todosLosNuevosDatos.push(...resultadosDelPaquete);
-                
-                procesadosExitosos += resultadosDelPaquete.length;
-                if (btnExtraer) btnExtraer.innerText = `⏳ Procesando ${procesadosExitosos} / ${registrosAProcesar.length}...`;
+                    // 🔥 Actualiza el contador de 1 en 1 a la velocidad de la luz
+                    procesadosExitosos++;
+                    if (btnExtraer) btnExtraer.innerText = `⏳ Procesando ${procesadosExitosos} / ${registrosAProcesar.length}...`;
+                }
+            };
 
-                await new Promise(r => setTimeout(r, 200)); 
+            // Lanzar a los 15 trabajadores al mismo tiempo sin pausas
+            const promesasWorkers = [];
+            for (let i = 0; i < CONCURRENCIA_MAXIMA; i++) {
+                promesasWorkers.push(trabajadorInvisible());
             }
+            await Promise.all(promesasWorkers); // Espera a que la cola entera se vacíe
 
             const reporte = guardarMultiplesEnLote(todosLosNuevosDatos);
             
@@ -1261,7 +1270,6 @@
             footer.innerHTML = `
                 <div style="display:flex; align-items:center; gap:8px;">
                     <button type="button" id="btn-limpiar-lote" class="btn-rafaga btn-red" title="Limpiar Base">🗑️</button>
-                    <button type="button" id="btn-descargar-contactos" class="btn-rafaga btn-orange" title="Descargar CSV">👥</button>
                     <button type="button" id="btn-descargar-contacto" class="btn-rafaga" style="background: #166534; color: white; transition: all 0.3s;" title="Copiar Contactos" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 0 12px #166534, 0 0 20px #166534';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     </button>
@@ -1383,67 +1391,7 @@
                     mostrarAviso('Error al copiar al portapapeles', '#ef4444', 'error');
                 });
             };
-            document.getElementById('btn-descargar-contactos').onclick = (e) => {
-                e.stopPropagation();
-                let lote = obtenerLoteFiltrado();
-                if (lote.length === 0) return mostrarAviso('No hay contactos', '#fbbf24', 'warning');
-                
-                // Función auxiliar para escapar campos según el estándar CSV
-                const escaparCSV = (texto) => {
-                    if (!texto) return '';
-                    let str = String(texto).trim();
-                    if (str.includes('"')) str = str.replace(/"/g, '""');
-                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                        return `"${str}"`;
-                    }
-                    return str;
-                };
-
-                let filasCSV = [];
-                
-                // Cabecera EXACTA a la original (sin correo)
-                filasCSV.push("\uFEFFID PLAN,NOMBRE,APP,PRODUCTO,DEUDA TOTAL,PRORROGA,DIAS MORA,CARGO POR MORA,MONTO CONTRATO,NUMERO,REFERENCIA 1,REFERENCIA 2");
-
-                lote.forEach(c => {
-                    // Se añade \t oculto para forzar formato texto en Excel y evitar notación científica
-                    let tel = c.telefono ? '\t' + c.telefono.replace('+', '').trim() : '';
-                    let r1 = c.ref1 ? '\t' + c.ref1.replace('+', '').trim() : '';
-                    let r2 = c.ref2 ? '\t' + c.ref2.replace('+', '').trim() : '';
-
-                    let fila = [
-                        c.idPlan || '',
-                        escaparCSV(c.nombre),
-                        escaparCSV(c.app),
-                        escaparCSV(c.producto),
-                        c.monto || '0',
-                        c.importeReinv || '0',
-                        c.diasMora || '0',
-                        c.cargoMora || '0',
-                        c.montoPago || '0',
-                        tel,
-                        r1,
-                        r2
-                    ];
-
-                    filasCSV.push(fila.join(','));
-                });
-
-                const csvContent = filasCSV.join('\n');
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a'); 
-                a.href = url;
-                a.download = `Gestión_Cartera_${new Date().toISOString().split('T')[0]}.csv`;
-                
-                document.body.appendChild(a); 
-                a.click(); 
-                document.body.removeChild(a); 
-                URL.revokeObjectURL(url);
-                
-                mostrarAviso('CSV descargado 📥', '#f59e0b', 'success');
-            };
-
+            
             document.getElementById('btn-copiar-lote').onclick = (e) => {
                 e.stopPropagation();
                 let lote = obtenerLoteFiltrado();
