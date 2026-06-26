@@ -373,7 +373,10 @@
                 }
 
                 let records = data1.data?.records || [];
-                if (records.length > 0) window.appState.stageGeneral = records[0].stageName || 'UNKNOWN';
+                if (records.length > 0) {
+                    window.appState.stageGeneral = records[0].stageName || 'UNKNOWN';
+                    window.appState.cuentaGeneral = records[0].urgeUserName || 'UNKNOWN'; // 🔥 Guardamos la cuenta activa
+                }
                 
                 const counts = {}; records.forEach(c => counts[c.userId] = (counts[c.userId] || 0) + 1);
                 records.sort((a, b) => {
@@ -426,7 +429,7 @@
 
             const header = document.createElement('div');
             Object.assign(header.style, { padding: '15px 20px', borderBottom: '1px solid rgba(57, 255, 20, 0.3)', display: 'flex', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.4)', borderTopLeftRadius: '12px', borderTopRightRadius: '12px', cursor: 'grab' });
-            header.innerHTML = `<div><strong style="color:#39ff14; text-shadow: 0 0 5px #39ff14;">TERMINAL ADMINISTRATIVA</strong> | Etapa: <span style="color:#fbbf24">${window.appState.stageGeneral}</span></div>`;
+            header.innerHTML = `<div><strong style="color:#39ff14; text-shadow: 0 0 5px #39ff14;">TERMINAL ADMINISTRATIVA</strong> | Etapa: <span style="color:#fbbf24">${window.appState.stageGeneral || 'N/A'}</span> | Cuenta: <span style="color:#0ea5e9; font-weight:bold;">${window.appState.cuentaGeneral || 'N/A'}</span></div>`;
             const closeBtn = document.createElement('button'); closeBtn.innerHTML = '×';
             Object.assign(closeBtn.style, { background: 'transparent', border: 'none', color: '#ef4444', fontSize: '28px', cursor: 'pointer', lineHeight: '1' });
             closeBtn.onclick = () => panel.remove(); 
@@ -936,13 +939,23 @@
                 
                 let hoyServidor = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
                 try {
-                    const tResp = await fetch(`${window.appState.baseUrl}/api/manage/get/time?v=${Date.now()}`, { headers: { 'Authentication': window.appState.token } });
+                    const t = Date.now();
+                    const v = Math.floor(Math.random() * 1000000000);
+                    const tResp = await fetch(`${window.appState.baseUrl}/api/manage/get/time?v=${v}&t=${t}`, { 
+                        method: 'GET',
+                        headers: { 
+                            'Accept': 'application/json, text/plain, */*',
+                            'Authentication': window.appState.token,
+                            'Cache-Control': 'no-cache'
+                        },
+                        credentials: 'include' // 🔥 CLAVE PARA QUE EL SERVIDOR NO RECHACE LA PETICIÓN
+                    });
                     const tData = await tResp.json();
-                    if (tData?.data) {
+                    if (tData && tData.data) {
                         if (typeof tData.data === 'string' && tData.data.includes('-')) hoyServidor = tData.data.split(' ')[0];
                         else hoyServidor = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Number(tData.data)));
                     }
-                } catch(e) {}
+                } catch(e) { console.error("Error obteniendo hora del servidor en escáner:", e); }
 
                 const dataTarget = window.appState.filteredData; 
                 if(dataTarget.length === 0) {
@@ -979,7 +992,11 @@
                             const fechaFull = r.createTime || r.followTime || r.updateTime || "";
                             const fechaSoloDia = fechaFull.split(' ')[0]; 
                             
-                            if (fechaSoloDia === hoyServidor) {
+                            // 🔥 VERIFICACIÓN DE COBRADOR: Compara quién hizo el seguimiento vs quién lo tiene asignado
+                            const cuentaSeguimiento = String(r.followStaff || "").trim().toLowerCase();
+                            const cuentaActual = String(c.urgeUserName || "").trim().toLowerCase();
+                            
+                            if (fechaSoloDia === hoyServidor && cuentaSeguimiento === cuentaActual) {
                                 const nota = (r.note || r.remark || r.content || "").trim();
                                 const target = String(r.followTarget || "0");
                                 
@@ -1546,9 +1563,11 @@
                     const timeResp = await fetch(`${window.appState.baseUrl}/api/manage/get/time?v=${v}&t=${t}`, { 
                         method: 'GET', 
                         headers: { 
+                            'Accept': 'application/json, text/plain, */*',
                             'Authentication': window.appState.token,
-                            'Accept': 'application/json, text/plain, */*'
-                        } 
+                            'Cache-Control': 'no-cache'
+                        },
+                        credentials: 'include' // 🔥 CLAVE PARA QUE EL SERVIDOR NO RECHACE LA PETICIÓN
                     });
                     const timeData = await timeResp.json();
                     
@@ -1625,8 +1644,12 @@
                             const notaHistorial = (r.note || r.remark || r.content || "").toLowerCase();
                             const target = String(r.followTarget || "0"); 
                             
-                            // 🔥 VERDAD ABSOLUTA: El día del historial === El día del Servidor API
-                            if (fechaSoloDia === hoyServidor && notaHistorial.includes(mensajeClave.toLowerCase())) {
+                            // 🔥 VERIFICACIÓN DE COBRADOR: Evita falsos positivos si el seguimiento fue de otro cobrador
+                            const cuentaSeguimiento = String(r.followStaff || "").trim().toLowerCase();
+                            const cuentaActual = String(c.urgeUserName || "").trim().toLowerCase();
+                            
+                            // 🔥 VERDAD ABSOLUTA: Día del historial === Día del API && Cobrador Historial === Cobrador Actual
+                            if (fechaSoloDia === hoyServidor && notaHistorial.includes(mensajeClave.toLowerCase()) && cuentaSeguimiento === cuentaActual) {
                                 if (target === "0") sentTitular = true;
                                 else if (target === "1") sentRef1 = true;
                                 else if (target === "2") sentRef2 = true;
