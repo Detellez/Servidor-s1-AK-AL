@@ -725,7 +725,11 @@
                 });
 
                 // 🔥 LÓGICA DE FILTRADO DUAL CON BUSCADOR MASIVO (EXCEL) 🔥
+                window.appState.modoFiltroNota = 'MOSTRAR'; 
+                window.appState.filterNotaKeys = []; // 🔥 Inicializamos el array multi-selección
+
                 const applyAllFilters = () => {
+                    window.appState.applyFiltersFn = applyAllFilters; 
                     const selectedApps = Array.from(document.querySelectorAll('.f-app-chk:checked')).map(cb => cb.value);
                     const selectedDays = Array.from(document.querySelectorAll('.f-days-chk:checked')).map(cb => cb.value);
                     const selectedDates = Array.from(document.querySelectorAll('.f-dates-chk:checked')).map(cb => cb.value.toLowerCase());
@@ -736,36 +740,49 @@
 
                     window.appState.filteredData = window.appState.rawData.filter(c => {
                         
+                        // 🛡️ BARRERA MAESTRA (MULTI-SELECCIÓN): FILTRO MOSTRAR / OCULTAR 🛡️
+                        if (window.appState.filterNotaKeys && window.appState.filterNotaKeys.length > 0 && window.appState.gruposNotasHoy) {
+                            let tieneAlgunaNota = false;
+                            
+                            // Revisa si el cliente tiene AL MENOS UNA de las notas seleccionadas
+                            for (let key of window.appState.filterNotaKeys) {
+                                const grupo = window.appState.gruposNotasHoy[key];
+                                if (grupo && grupo.userIds.has(String(c.userId))) {
+                                    tieneAlgunaNota = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (window.appState.modoFiltroNota === 'OCULTAR') {
+                                if (tieneAlgunaNota) return false; // Si lo tiene, lo borra de la vista
+                            } else {
+                                if (!tieneAlgunaNota) return false; // Si NO lo tiene, lo borra (Solo muestra los que lo tienen)
+                            }
+                        }
+                        
                         // 1. 🔥 NUEVA BARRERA: LECTURA INTELIGENTE DE EXCEL (IGNORANDO PREFIJOS) 🔥
                         if (searchText !== '') {
-                            // Detectamos el país actual para saber cuántos dígitos reales tiene un teléfono local[cite: 2]
                             const currentCrm = CONFIG_CRMS.find(cfg => cfg.domains.some(d => window.appState.baseUrl.includes(d))) || { digits: 10 };
                             const digitosLocales = currentCrm.digits;
 
-                            // Separamos lo pegado y procesamos cada término
                             const terminosBuscados = searchText.split(/[\s,;\n\t]+/).filter(Boolean).map(term => {
                                 const soloNumeros = term.replace(/[^0-9]/g, '');
-                                // Si pegaron un teléfono con prefijo de país, le cortamos el prefijo quedándonos con los últimos N dígitos locales
                                 if (soloNumeros.length >= digitosLocales && soloNumeros.length <= digitosLocales + 4) {
                                     return soloNumeros.slice(-digitosLocales);
                                 }
-                                return term.toLowerCase(); // Si es texto (nombres, IDs) lo dejamos intacto
+                                return term.toLowerCase(); 
                             });
                             
-                            // Limpiamos también el teléfono del CRM (Por si el CRM ya lo trae con prefijo guardado)
                             const cPhoneRaw = String(c.phone || '').replace(/[^0-9]/g, '');
                             const cPhoneClean = cPhoneRaw.length >= digitosLocales ? cPhoneRaw.slice(-digitosLocales) : cPhoneRaw;
                             
-                            // Preparamos los datos del cliente a comparar
                             const cInfo = `${c.userId || ''} ${c.repayId || ''} ${c.orderId || ''} ${cPhoneClean} ${String(c.userName || '').toLowerCase()}`;
                             
-                            // ¿El cliente contiene ALGUNO de los términos limpios de la lista pegada?
                             const coincide = terminosBuscados.some(term => cInfo.includes(term));
                             
-                            if (!coincide) return false; // Se descarta si no está en la lista pegada
+                            if (!coincide) return false; 
                         }
 
-                        // Si pasa el buscador de texto y TODOS los demás filtros están limpios, lo mostramos
                         if (selectedApps.length === 0 && selectedDays.length === 0 && selectedDates.length === 0 && fRepay === 'ALL') {
                             return true;
                         }
@@ -781,14 +798,12 @@
                         const matchDate = selectedDates.some(date => openT.includes(date));
 
                         if (isEstricto) {
-                            // MODO ESTRICTO (EMBUDO / AND) - Solo pasa si cumple TODAS las categorías seleccionadas
                             let pasaApp = selectedApps.length > 0 ? matchApp : true;
                             let pasaDay = selectedDays.length > 0 ? matchDay : true;
                             let pasaRepay = fRepay !== 'ALL' ? matchRepay : true;
                             let pasaDate = selectedDates.length > 0 ? matchDate : true;
                             return pasaApp && pasaDay && pasaRepay && pasaDate;
                         } else {
-                            // MODO FLEXIBLE (SUMA / OR) - Pasa si cumple AL MENOS UNA de las opciones marcadas
                             return (selectedApps.length > 0 && matchApp) || 
                                    (selectedDays.length > 0 && matchDay) || 
                                    (fRepay !== 'ALL' && matchRepay) || 
@@ -799,6 +814,9 @@
                     window.appState.currentPage = 1; 
                     renderTable();
                 };
+
+                // 🚀 PUENTE REPARADO: EXPOSICIÓN GLOBAL INMEDIATA PARA QUE EL PANEL DE NOTAS LO PUEDA LLAMAR 🚀
+                window.appState.applyFiltersFn = applyAllFilters;
 
                 // 🔥 CONFIGURACIÓN VISUAL Y MEMORIA DEL BOTÓN LÓGICA 🔥
                 // Buscamos dentro de filterBar porque aún no se inyecta al DOM global
@@ -849,14 +867,259 @@
             footerPage.append(lblInfo, pageControls);
             leftCol.appendChild(footerPage);
 
-            // 🔥 AJUSTE VERTICAL: 35% Consola de Logs 🔥
+            // 🔥 FUNCIONES DE MINI PANELES 🔥
+            const createMiniPanel = (title, dataObj, defaultColor, isAppPanel = false) => {
+                const wrap = document.createElement('div'); Object.assign(wrap.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: `1px solid ${defaultColor}40`, display: 'flex', flexDirection: 'column' });
+                const listHtml = Object.entries(dataObj).sort((a,b)=>b[1]-a[1]).map(([k,v]) => {
+                    const itemColor = isAppPanel && window.getAppColor ? window.getAppColor(k) : '#e2e8f0';
+                    return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted rgba(255,255,255,0.1);"><span style="color:${itemColor};font-weight:${isAppPanel?'bold':'normal'};">${k}</span><span style="color:#fbbf24;font-weight:bold;">${v}</span></div>`;
+                }).join('');
+                wrap.innerHTML = `<div style="color:${defaultColor};font-size:11px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;border-bottom:1px solid ${defaultColor}40;padding-bottom:4px; flex-shrink:0;">${title}</div><div style="overflow-y:auto; flex-grow:1; font-size:11px;">${listHtml}</div>`;
+                return wrap;
+            };
+
+            // 🔥 AJUSTE VERTICAL: 35% (CONSOLA DE LOGS + APPS + PAGOS) 🔥
+            const bottomPanel = document.createElement('div');
+            Object.assign(bottomPanel.style, { display: 'flex', flex: '3.5', marginTop: '10px', gap: '10px', minHeight: '0' });
+
             const statusLog = document.createElement('div');
             statusLog.id = 'crm-status-log';
-            Object.assign(statusLog.style, { flex: '3.5', marginTop: '10px', padding: '10px', fontSize: '12px', color: '#10b981', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '6px', overflowY: 'auto', border: '1px solid rgba(16,185,129,0.3)', minHeight: '0' });
+            Object.assign(statusLog.style, { flex: '6', padding: '10px', fontSize: '12px', color: '#10b981', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '6px', overflowY: 'auto', border: '1px solid rgba(16,185,129,0.3)', minHeight: '0' });
             statusLog.innerHTML = "Listo para iniciar...";
-            leftCol.appendChild(statusLog);
+
+            const statsBottomPanel = document.createElement('div');
+            Object.assign(statsBottomPanel.style, { flex: '4', display: 'flex', gap: '10px', minHeight: '0' });
+            
+            const appsSummary = {}; window.appState.rawData.forEach(c => { const app = c.appName || c.productName || 'N/A'; appsSummary[app] = (appsSummary[app] || 0) + 1; });
+            const panelApps = createMiniPanel("Apps (General)", appsSummary, '#0ea5e9', true);
+            panelApps.style.flex = '1';
+
+            const paidWrap = document.createElement('div');
+            Object.assign(paidWrap.style, { flex: '1', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: `1px solid #10b98140`, display: 'flex', flexDirection: 'column', minHeight: '0' });
+            if (window.appState.paidData.length > 0) {
+                let listHtml = window.appState.paidData.map(p => {
+                    const tipo = p.closeType == 1 ? 'Total' : (p.closeType == 2 ? 'Prórroga' : 'Otro');
+                    const color = p.closeType == 1 ? '#39ff14' : '#f59e0b';
+                    return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted rgba(255,255,255,0.1);"><span class="copy-id" data-id="${p.userId}" style="cursor:pointer;" title="Doble clic para copiar">${p.userId}</span><span style="color:${color};font-weight:bold;">${tipo}</span></div>`;
+                }).join('');
+                paidWrap.innerHTML = `<div style="color:#39ff14;font-size:11px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;border-bottom:1px solid rgba(57,255,20,0.3);padding-bottom:4px; flex-shrink:0;">Últimos Pagos</div><div style="overflow-y:auto; flex-grow:1; font-size:11px;">${listHtml}</div>`;
+            } else {
+                paidWrap.innerHTML = `<div style="color:#10b981;font-size:11px;font-weight:bold;margin-bottom:4px;text-transform:uppercase;border-bottom:1px solid #10b98140;padding-bottom:4px;">Últimos Pagos</div><div style="font-size:11px; color:#9ca3af;">No hay pagos recientes.</div>`;
+            }
+
+            statsBottomPanel.append(panelApps, paidWrap);
+            bottomPanel.append(statusLog, statsBottomPanel);
+            leftCol.appendChild(bottomPanel);
 
             function logMsg(msg, color="#10b981") { statusLog.innerHTML = `<span style="color:${color}">${msg}</span><br>` + statusLog.innerHTML; }
+
+            // 🔥 RENDERIZADOR DEL MINI PANEL DE NOTAS DE HOY 🔥
+            window.appState.filterNotaKey = null;
+            window.appState.gruposNotasHoy = {};
+            window.appState.isScanning = false;
+
+            window.appState.renderNotasHoyPanel = (htmlContent) => {
+                const panel = document.getElementById('crm-notas-hoy-panel');
+                if (panel) panel.innerHTML = htmlContent;
+            };
+
+            window.appState.iniciarEscaneoHistorial = async () => {
+                if (window.appState.isScanning) return;
+                window.appState.isScanning = true;
+                
+                let tz = 'America/Mexico_City';
+                if (window.appState.baseUrl.includes('co-crm')) tz = 'America/Bogota';
+                else if (window.appState.baseUrl.includes('cl-crm')) tz = 'America/Santiago';
+                else if (window.appState.baseUrl.includes('pe-crm')) tz = 'America/Lima';
+                else if (window.appState.baseUrl.includes('creddireto')) tz = 'America/Sao_Paulo';
+                else if (window.appState.baseUrl.includes('rayodinero')) tz = 'America/Argentina/Buenos_Aires';
+                
+                let hoyServidor = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+                try {
+                    const tResp = await fetch(`${window.appState.baseUrl}/api/manage/get/time?v=${Date.now()}`, { headers: { 'Authentication': window.appState.token } });
+                    const tData = await tResp.json();
+                    if (tData?.data) {
+                        if (typeof tData.data === 'string' && tData.data.includes('-')) hoyServidor = tData.data.split(' ')[0];
+                        else hoyServidor = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Number(tData.data)));
+                    }
+                } catch(e) {}
+
+                const dataTarget = window.appState.filteredData; 
+                if(dataTarget.length === 0) {
+                    window.appState.isScanning = false;
+                    return alert("No hay clientes en la tabla para escanear.");
+                }
+
+                const groups = {};
+                let escaneados = 0;
+
+                const renderProgress = () => {
+                    let html = `<div style="color:#a78bfa; font-size:11px; font-weight:bold; margin-bottom:8px; text-transform:uppercase; border-bottom:1px solid rgba(139,92,246,0.3); padding-bottom:4px;">[SEGUIMIENTOS DE HOY]</div>`;
+                    html += `<div style="font-size:11px; color:#39ff14; text-align:center; margin-top:20px; font-family:'Courier New', monospace;">
+                                Evaluando historiales...<br><br><span style="font-size:16px;">[ ${escaneados} / ${dataTarget.length} ]</span>
+                             </div>`;
+                    window.appState.renderNotasHoyPanel(html);
+                };
+
+                renderProgress();
+
+                for (let i = 0; i < dataTarget.length; i++) {
+                    const c = dataTarget[i];
+                    try {
+                        const v = Math.floor(Math.random() * 1000000000);
+                        const t = Date.now();
+                        const hResp = await fetch(`${window.appState.baseUrl}/api/manage/urge/task/getFollowPage?v=${v}&t=${t}`, { 
+                            method: 'POST', 
+                            headers: { 'Authentication': window.appState.token, 'Content-Type': 'application/json;charset=UTF-8', 'Accept': 'application/json, text/plain, */*' }, 
+                            body: JSON.stringify({ taskId: String(c.taskId), orderId: String(c.orderId), current: "1", size: "50" }) 
+                        });
+                        const hData = await hResp.json();
+                        
+                        (hData.data?.records || []).forEach(r => {
+                            const fechaFull = r.createTime || r.followTime || r.updateTime || "";
+                            const fechaSoloDia = fechaFull.split(' ')[0]; 
+                            
+                            if (fechaSoloDia === hoyServidor) {
+                                const nota = (r.note || r.remark || r.content || "").trim();
+                                const target = String(r.followTarget || "0");
+                                
+                                if (nota) {
+                                    const key = `${target}|${nota}`;
+                                    if (!groups[key]) groups[key] = { count: 0, userIds: new Set(), target: target, nota: nota };
+                                    
+                                    // 🔒 GUARDAMOS EL ID COMO TEXTO ESTRICTO PARA EVITAR FALLOS DE TIPADO
+                                    const stringId = String(c.userId);
+                                    if (!groups[key].userIds.has(stringId)) {
+                                        groups[key].userIds.add(stringId);
+                                        groups[key].count++;
+                                    }
+                                }
+                            }
+                        });
+                    } catch(e) {}
+                    
+                    escaneados++;
+                    if (escaneados % 5 === 0) renderProgress(); 
+                    await new Promise(res => setTimeout(res, 50)); 
+                }
+
+                window.appState.gruposNotasHoy = groups;
+                window.appState.isScanning = false;
+                window.appState.dibujarResultadosEscaneo();
+            };
+
+            window.appState.dibujarResultadosEscaneo = () => {
+                const groups = window.appState.gruposNotasHoy;
+                const modoActual = window.appState.modoFiltroNota || 'MOSTRAR';
+                const colorModo = modoActual === 'MOSTRAR' ? '#39ff14' : '#ef4444';
+                
+                // 🔥 1. HEADER COMBINADO Y MÁS LIMPIO 🔥
+                let html = `<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(139,92,246,0.3); padding-bottom:6px; margin-bottom:10px;">
+                                <button id="btn-toggle-modo-nota" title="Cambiar a ${modoActual === 'MOSTRAR' ? 'Ocultar' : 'Mostrar'}" style="background:rgba(0,0,0,0.6); border:1px solid ${colorModo}; color:${colorModo}; font-size:11px; font-weight:bold; cursor:pointer; padding:5px 10px; border-radius:4px; font-family:'Courier New', monospace; box-shadow:0 0 10px ${colorModo}40; transition:0.2s; outline:none; text-shadow:0 0 5px ${colorModo}80;">
+                                    [SEGUIMIENTOS: ${modoActual}]
+                                </button>
+                                <button id="btn-re-escanear" style="background:rgba(14,165,233,0.2); border:1px solid #0ea5e9; color:#0ea5e9; font-size:11px; font-weight:bold; cursor:pointer; padding:5px 8px; border-radius:4px; outline:none; transition:0.2s;" title="Re-escanear">🔄</button>
+                            </div>`;
+                html += `<div style="overflow-y:auto; flex-grow:1; display:flex; flex-direction:column; gap:4px; padding-right:4px;">`;
+                
+                const groupKeys = Object.keys(groups);
+                if (groupKeys.length === 0) {
+                    html += `<div style="color:#9ca3af; font-size:12px; text-align:center; margin-top:15px;">No hay seguimientos registrados hoy.</div>`;
+                } else {
+                    const sortedGroups = groupKeys.map(k => ({ key: k, ...groups[k] })).sort((a,b) => b.count - a.count);
+                    
+                    const getTargetBadge = (t) => {
+                        if(t === "0") return `<span style="color:#39ff14; font-weight:900; font-size:11px;">[TIT]</span>`;
+                        if(t === "1") return `<span style="color:#0ea5e9; font-weight:900; font-size:11px;">[RF1]</span>`;
+                        if(t === "2") return `<span style="color:#d946ef; font-weight:900; font-size:11px;">[RF2]</span>`;
+                        return `<span style="color:#fbbf24; font-weight:900; font-size:11px;">[OTR]</span>`;
+                    };
+
+                    sortedGroups.forEach(g => {
+                        // 🔥 2. LÓGICA MULTI-SELECCIÓN (VERIFICA SI LA KEY ESTÁ EN EL ARRAY) 🔥
+                        const isActive = window.appState.filterNotaKeys && window.appState.filterNotaKeys.includes(g.key);
+                        const bg = isActive ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.02)';
+                        const border = isActive ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.08)';
+                        const color = isActive ? '#fff' : '#cbd5e1';
+                        
+                        // 🔥 3. REDUCCIÓN DE ALTURA (PADDING MÁS AJUSTADO) 🔥
+                        html += `
+                            <div class="nota-hoy-item" data-key="${g.key.replace(/"/g, '&quot;')}" style="background:${bg}; border:${border}; color:${color}; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:0.2s; min-height:26px;">
+                                <div style="display:flex; align-items:center; gap:6px; overflow:hidden; flex-grow:1;">
+                                    ${getTargetBadge(g.target)}
+                                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; font-weight:500;" title="${g.nota}">${g.nota}</span>
+                                </div>
+                                <span style="background:rgba(0,0,0,0.6); border:1px solid #8b5cf6; color:#39ff14; padding:2px 6px; border-radius:2px; font-size:12px; font-weight:900; font-family:'Courier New', monospace; flex-shrink:0; box-shadow:0 0 5px rgba(139,92,246,0.3);">
+                                    ${g.count}
+                                </span>
+                            </div>
+                        `;
+                    });
+                }
+                html += `</div>`;
+                window.appState.renderNotasHoyPanel(html);
+
+                // Asignar Eventos al panel
+                const panel = document.getElementById('crm-notas-hoy-panel');
+                if (panel) {
+                    const btnRe = panel.querySelector('#btn-re-escanear');
+                    if(btnRe) btnRe.onclick = window.appState.iniciarEscaneoHistorial;
+                    
+                    const btnModo = panel.querySelector('#btn-toggle-modo-nota');
+                    if(btnModo) {
+                        btnModo.onclick = () => {
+                            window.appState.modoFiltroNota = window.appState.modoFiltroNota === 'MOSTRAR' ? 'OCULTAR' : 'MOSTRAR';
+                            window.appState.dibujarResultadosEscaneo();
+                            if (window.appState.filterNotaKeys && window.appState.filterNotaKeys.length > 0 && window.appState.applyFiltersFn) window.appState.applyFiltersFn();
+                        };
+                    }
+
+                    panel.querySelectorAll('.nota-hoy-item').forEach(item => {
+                        item.onclick = (e) => {
+                            const selectedKey = e.currentTarget.getAttribute('data-key');
+                            if (!window.appState.filterNotaKeys) window.appState.filterNotaKeys = [];
+                            
+                            // 🔥 4. LÓGICA DE AGREGAR O QUITAR DEL ARRAY MULTI-SELECCIÓN 🔥
+                            if (window.appState.filterNotaKeys.includes(selectedKey)) {
+                                window.appState.filterNotaKeys = window.appState.filterNotaKeys.filter(k => k !== selectedKey); // Lo quita si ya estaba
+                            } else {
+                                window.appState.filterNotaKeys.push(selectedKey); // Lo agrega si no estaba
+                            }
+                            
+                            window.appState.dibujarResultadosEscaneo(); 
+                            if (window.appState.applyFiltersFn) window.appState.applyFiltersFn();
+                        };
+                        item.onmouseenter = (e) => { 
+                            const key = e.currentTarget.getAttribute('data-key');
+                            if(!window.appState.filterNotaKeys || !window.appState.filterNotaKeys.includes(key)) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; 
+                        };
+                        item.onmouseleave = (e) => { 
+                            const key = e.currentTarget.getAttribute('data-key');
+                            if(!window.appState.filterNotaKeys || !window.appState.filterNotaKeys.includes(key)) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; 
+                        };
+                    });
+                }
+            };
+
+            window.appState.mostrarBotonEscaneo = () => {
+                let html = `<div style="color:#a78bfa; font-size:11px; font-weight:bold; margin-bottom:8px; text-transform:uppercase; border-bottom:1px solid rgba(139,92,246,0.3); padding-bottom:4px; text-shadow:0 0 5px rgba(139,92,246,0.5);">[SEGUIMIENTOS DE HOY]</div>
+                            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex-grow:1; text-align:center; padding:10px;">
+                                <span style="color:#9ca3af; font-size:10px; margin-bottom:10px; line-height:1.4;">Haz un escaneo profundo para agrupar <b>todos</b> los historiales a Titulares y Referencias.</span>
+                                <button id="btn-iniciar-escaneo" style="background:rgba(139,92,246,0.2); border:1px solid #8b5cf6; color:#a78bfa; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:11px; transition:0.2s;">🔍 ESCANEAR AHORA</button>
+                            </div>`;
+                window.appState.renderNotasHoyPanel(html);
+                
+                setTimeout(() => {
+                    const btn = document.getElementById('btn-iniciar-escaneo');
+                    if(btn) {
+                        btn.onmouseenter = () => { btn.style.background = '#8b5cf6'; btn.style.color = '#fff'; };
+                        btn.onmouseleave = () => { btn.style.background = 'rgba(139,92,246,0.2)'; btn.style.color = '#a78bfa'; };
+                        btn.onclick = window.appState.iniciarEscaneoHistorial;
+                    }
+                }, 100);
+            };
+
+            setTimeout(window.appState.mostrarBotonEscaneo, 500);
 
             // 🔥 LÓGICA PARA EXTRAER INFO Y ABRIR PESTAÑA LIMPIA DE UN CLIENTE EN SEGUNDO PLANO 🔥
             window.abrirClienteUnico = async function(c) {
@@ -913,35 +1176,40 @@
                 const btnAbrirMasivo = document.getElementById('btn-abrir-masivo');
                 if (btnAbrirMasivo && !window.appState.isExecuting && !window.appState.isPaused) btnAbrirMasivo.innerHTML = `[> ABRIR CLIENTES (${dataToShow.length})]`;
 
-                // 🔥 ENCABEZADO STICKY CON CHECKBOX MAESTRO 🔥
-                table.innerHTML = `<thead style="position: sticky; top: 0; z-index: 10; background: rgba(10, 15, 30, 0.95); box-shadow: 0 2px 10px rgba(0,0,0,0.8); backdrop-filter: blur(5px);">
-                <tr style="border-bottom:1px solid rgba(57,255,20,0.3);">
-                    <th style="padding:6px; text-align:center; width: 30px;"><input type="checkbox" id="chk-all-rows" checked style="cursor:pointer; accent-color:#39ff14; transform: scale(1.2);" title="Seleccionar / Deseleccionar todo"></th>
-                    <th style="padding:6px; color:#e2e8f0;">ID</th><th style="padding:6px; color:#e2e8f0;">Cobrador</th><th style="padding:6px; color:#e2e8f0;">Etapa</th><th style="padding:6px; color:#e2e8f0;">Cliente</th>
-                    <th style="padding:6px; color:#e2e8f0;">Teléfono</th><th style="padding:6px; color:#e2e8f0;">App</th><th style="padding:6px;color:#fbbf24;">Producto</th><th style="padding:6px; color:#e2e8f0;">Atraso</th>
-                    <th style="padding:6px; color:#e2e8f0;">Pago?</th><th style="padding:6px; color:#e2e8f0;">Fecha de Conexión</th><th style="padding:6px;text-align:center; color:#e2e8f0;">Acción</th>
+                table.innerHTML = `<thead style="position: sticky; top: 0; z-index: 10; background: rgba(10, 15, 30, 0.95); border-bottom:1px solid rgba(57,255,20,0.3);">
+                <tr>
+                    <th style="padding:8px; width:30px;"><input type="checkbox" id="chk-all-rows" checked></th>
+                    <th style="padding:8px; font-size:12px; color:#e2e8f0;">ID</th><th style="padding:8px; font-size:12px; color:#e2e8f0;">Cobrador</th><th style="padding:8px; font-size:12px; color:#e2e8f0;">Etapa</th><th style="padding:8px; font-size:12px; color:#e2e8f0;">Cliente</th>
+                    <th style="padding:8px; font-size:12px; color:#e2e8f0;">Teléfono</th><th style="padding:8px; font-size:12px; color:#e2e8f0;">App</th><th style="padding:8px; font-size:12px; color:#fbbf24;">Producto</th><th style="padding:8px; font-size:12px; color:#e2e8f0;">Atraso</th>
+                    <th style="padding:8px; font-size:12px; color:#e2e8f0;">Pago?</th><th style="padding:8px; font-size:12px; color:#e2e8f0;">Fecha</th><th style="padding:8px; font-size:12px; color:#e2e8f0; text-align:center;">Historial</th><th style="padding:8px; font-size:12px; color:#e2e8f0; text-align:center;">Acción</th>
                 </tr></thead><tbody>` +
-                    dataToShow.map(c => {
-                        const openDate = c.openTime ? c.openTime.split(' ')[0] : '-';
-                        let dateStyle = 'color:#e2e8f0;'; 
-                        if (openDate === hoyStr) dateStyle = 'color: #39ff14; font-weight: bold; text-shadow: 0 0 5px rgba(57,255,20,0.6);'; 
-                        else if (openDate === ayerStr) dateStyle = 'color: #ff6700; font-weight: bold; text-shadow: 0 0 5px rgba(255,103,0,0.6);'; 
-                        
-                        const appColor = window.getAppColor ? window.getAppColor(c.appName) : '#9ca3af';
+                dataToShow.map(c => {
+                    const openDate = c.openTime ? c.openTime.split(' ')[0] : '-';
+                    let dateStyle = 'color:#e2e8f0;'; 
+                    if (openDate === hoyStr) dateStyle = 'color: #39ff14; font-weight: bold; text-shadow: 0 0 5px rgba(57,255,20,0.6);'; 
+                    else if (openDate === ayerStr) dateStyle = 'color: #ff6700; font-weight: bold; text-shadow: 0 0 5px rgba(255,103,0,0.6);'; 
+                    const appColor = window.getAppColor ? window.getAppColor(c.appName) : '#9ca3af';
 
-                        return `<tr class="fila-crm-datos" style="${currentIds[c.userId] > 1 ? 'background:rgba(239,68,68,0.15)' : 'border-bottom:1px solid rgba(255,255,255,0.05)'}">
-                            <td style="padding:4px; text-align:center;"><input type="checkbox" class="chk-row" data-uid="${c.userId}" data-tid="${c.taskId}" checked style="cursor:pointer; accent-color:#39ff14; transform: scale(1.1);"></td>
-                            <td style="padding:4px;color:${currentIds[c.userId] > 1 ? '#fca5a5' : '#93c5fd'}"><span class="copy-id" data-id="${c.userId}" style="cursor:pointer;" title="Doble clic para copiar">${c.userId}</span></td>
-                            <td style="padding:4px;">${c.urgeUserName||'N/A'}</td><td style="padding:4px;">${c.stageName||'N/A'}</td>
-                            <td style="padding:4px;">${c.userName||'N/A'}</td><td style="padding:4px;">${c.phone||'N/A'}</td>
-                            <td style="padding:4px;color:${appColor};font-weight:bold;">${c.appName||'N/A'}</td><td style="padding:4px;color:#fbbf24;">${c.productName||'N/A'}</td><td style="padding:4px;">${c.overdueDay!==undefined?c.overdueDay:'-'}</td>
-                            <td style="padding:4px;">${c.isRepay===true?'Si':'No'}</td>
-                            <td style="padding:4px; ${dateStyle}">${openDate}</td>
-                            <td style="padding:4px;text-align:center;">
-                                <button class="btn-abrir-fila" data-uid="${c.userId}" data-tid="${c.taskId}" style="background:#3b82f6; color:#fff; border:none; border-radius:4px; padding:3px 8px; font-size:10px; cursor:pointer;">Abrir</button>
-                            </td>
-                        </tr>`;
-                    }).join('') + `</tbody>`;
+                    return `<tr class="fila-crm-datos" style="${currentIds[c.userId] > 1 ? 'background:rgba(239,68,68,0.15)' : 'border-bottom:1px solid rgba(255,255,255,0.05)'}">
+                        <td style="padding:8px; text-align:center;"><input type="checkbox" class="chk-row" data-uid="${c.userId}" data-tid="${c.taskId}" checked style="cursor:pointer; accent-color:#39ff14; transform: scale(1.1);"></td>
+                        <td style="padding:8px; font-size:12px; color:${currentIds[c.userId] > 1 ? '#fca5a5' : '#93c5fd'}"><span class="copy-id" data-id="${c.userId}" style="cursor:pointer;" title="Doble clic para copiar">${c.userId}</span></td>
+                        <td style="padding:8px; font-size:12px; color:#e2e8f0;">${c.urgeUserName||'N/A'}</td>
+                        <td style="padding:8px; font-size:12px; color:#e2e8f0;">${c.stageName||'N/A'}</td>
+                        <td style="padding:8px; font-size:12px; color:#e2e8f0;">${c.userName||'N/A'}</td>
+                        <td style="padding:8px; font-size:12px; color:#e2e8f0;">${c.phone||'N/A'}</td>
+                        <td style="padding:8px; font-size:12px; color:${appColor}; font-weight:bold;">${c.appName||'N/A'}</td>
+                        <td style="padding:8px; font-size:12px; color:#fbbf24;">${c.productName||'N/A'}</td>
+                        <td style="padding:8px; font-size:12px; color:#e2e8f0;">${c.overdueDay!==undefined?c.overdueDay:'-'}</td>
+                        <td style="padding:8px; font-size:12px; color:#e2e8f0;">${c.isRepay===true?'Si':'No'}</td>
+                        <td style="padding:8px; font-size:12px; ${dateStyle}">${openDate}</td>
+                        <td style="padding:8px; text-align:center;">
+                            <button class="btn-historial-fila" data-uid="${c.userId}" data-tid="${c.taskId}" style="background:#8b5cf6; color:#fff; border:1px solid #a78bfa; border-radius:4px; padding:4px 8px; font-size:11px; cursor:pointer; box-shadow: 0 0 5px rgba(139,92,246,0.4);" title="Ver Historial">Ver</button>
+                        </td>
+                        <td style="padding:8px; text-align:center;">
+                            <button class="btn-abrir-fila" data-uid="${c.userId}" data-tid="${c.taskId}" style="background:#3b82f6; color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:11px; cursor:pointer;">Abrir</button>
+                        </td>
+                    </tr>`;
+                }).join('') + `</tbody>`;
                     
                 // 🔥 LOGICA DE SELECCION MULTIPLE AL RENDERIZAR 🔥
                 setTimeout(() => {
@@ -972,14 +1240,206 @@
                 }, 50);
             }
 
+            // 🔥 FUNCIÓN PARA RENDERIZAR EL MINI MODAL DE HISTORIAL EN TABLA DETALLADA 🔥
+            const mostrarModalHistorial = (cliente, records) => {
+                const modalPrevio = document.getElementById('crm-modal-historial');
+                if (modalPrevio) modalPrevio.remove();
+
+                const overlay = document.createElement('div');
+                overlay.id = 'crm-modal-historial';
+                Object.assign(overlay.style, {
+                    position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(5px)', zIndex: '2147483647', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI', Roboto, Helvetica, sans-serif"
+                });
+
+                const modal = document.createElement('div');
+                Object.assign(modal.style, {
+                    backgroundColor: 'rgba(10, 15, 30, 0.98)', border: '1px solid #8b5cf6',
+                    boxShadow: '0 0 40px rgba(139, 92, 246, 0.6)', borderRadius: '8px',
+                    width: '1300px', maxWidth: '95vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+                    overflow: 'hidden' 
+                });
+
+                const header = document.createElement('div');
+                Object.assign(header.style, {
+                    padding: '12px 20px', borderBottom: '1px solid rgba(139, 92, 246, 0.3)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    backgroundColor: 'rgba(0,0,0,0.6)'
+                });
+                
+                const appColor = window.getAppColor ? window.getAppColor(cliente.appName) : '#9ca3af';
+                header.innerHTML = `
+                    <div>
+                        <strong style="color:#8b5cf6; text-shadow: 0 0 8px rgba(139, 92, 246, 0.8); font-size:16px; font-family:'Courier New', monospace;">[HISTORIAL DE SEGUIMIENTO DETALLADO]</strong><br>
+                        <span style="color:#e2e8f0; font-size:12px;">Cliente: <strong style="color:#fff">${cliente.userName}</strong> | ID: <span style="color:#fbbf24">${cliente.userId}</span> | App: <span style="color:${appColor}; font-weight:bold;">${cliente.appName || 'N/A'}</span></span>
+                    </div>
+                `;
+                
+                const closeBtn = document.createElement('button');
+                closeBtn.innerHTML = '×';
+                Object.assign(closeBtn.style, { background: 'transparent', border: 'none', color: '#ef4444', fontSize: '28px', cursor: 'pointer', lineHeight: '1', fontWeight: 'bold' });
+                closeBtn.onclick = () => overlay.remove();
+                header.appendChild(closeBtn);
+
+                let currentPage = 1;
+                const pageSize = 10;
+                const totalPages = Math.ceil(records.length / pageSize) || 1;
+
+                const bodyContainer = document.createElement('div');
+                Object.assign(bodyContainer.style, { display: 'flex', flexDirection: 'column', flexGrow: '1', overflow: 'hidden' });
+
+                const tableContainer = document.createElement('div');
+                Object.assign(tableContainer.style, { flexGrow: '1', overflowY: 'auto', overflowX: 'auto', padding: '0' });
+
+                const footerContainer = document.createElement('div');
+                Object.assign(footerContainer.style, {
+                    padding: '10px 20px', borderTop: '1px solid rgba(139, 92, 246, 0.3)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    backgroundColor: 'rgba(0,0,0,0.5)'
+                });
+
+                const getTargetName = (t) => {
+                    if(t == "0") return "Yo mismo (Titular)";
+                    if(t == "1") return "Contacto 1";
+                    if(t == "2") return "Contacto 2";
+                    return "Otro";
+                };
+
+                const getResultName = (r) => {
+                    const map = { "1":"Promesa", "2":"Tercero", "3":"No contestado", "4":"Apagado", "5":"Buzón", "6":"Equivocado", "7":"WhatsApp", "8":"Mensaje" };
+                    return map[r] || r || "-";
+                };
+
+                const renderPage = () => {
+                    const start = (currentPage - 1) * pageSize;
+                    const end = Math.min(start + pageSize, records.length);
+                    const pageData = records.slice(start, end);
+
+                    if (records.length === 0) {
+                        tableContainer.innerHTML = `<div style="text-align:center; padding: 50px; color: #9ca3af; font-size:14px; font-family:'Courier New', monospace;">No hay registros de seguimiento para este cliente.</div>`;
+                    } else {
+                        let rowsHtml = pageData.map((r, i) => {
+                            const idx = start + i + 1;
+                            const etapa = r.stageName || cliente.stageName || "-";
+                            const cuenta = r.followStaff || "Sistema"; 
+                            const target = getTargetName(r.followTarget);
+                            const telefono = r.phone || r.contactPhone || "-";
+                            const fecha = r.createTime || r.followTime || r.updateTime || "-";
+                            const resultado = r.followResultName || r.followResultStr || getResultName(r.followResult);
+                            const ptp = r.ptpTime || "-";
+                            const nota = r.note || r.remark || r.content || "";
+
+                            const rowBg = idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent';
+                            const targetColor = r.followTarget == "0" ? "#39ff14" : (r.followTarget == "1" ? "#0ea5e9" : "#d946ef");
+
+                            return `
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); background: ${rowBg}; transition: background 0.2s;">
+                                    <td style="padding: 10px; text-align:center; color:#9ca3af;">${idx}</td>
+                                    <td style="padding: 10px; text-align:center; color:#e2e8f0;">${etapa}</td>
+                                    <td style="padding: 10px; color:#fbbf24;">${cuenta}</td>
+                                    <td style="padding: 10px; color:${targetColor}; font-weight:bold;">${target}</td>
+                                    <td style="padding: 10px; font-family:'Courier New', monospace; color:#e2e8f0;">${telefono}</td>
+                                    <td style="padding: 10px; color:#9ca3af; white-space:nowrap;">${fecha}</td>
+                                    <td style="padding: 10px; color:#e2e8f0;">${resultado}</td>
+                                    <td style="padding: 10px; color:#0ea5e9;">${ptp}</td>
+                                    <td style="padding: 10px; color:#e2e8f0; max-width: 250px; word-wrap: break-word; line-height:1.4;">${nota}</td>
+                                </tr>
+                            `;
+                        }).join('');
+
+                        tableContainer.innerHTML = `
+                            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+                                <thead style="background: rgba(10, 15, 30, 0.95); position: sticky; top: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                                    <tr style="border-bottom: 2px solid #8b5cf6; color: #a78bfa; text-transform: uppercase;">
+                                        <th style="padding: 12px 10px; text-align:center; white-space:nowrap;">NO.</th>
+                                        <th style="padding: 12px 10px; text-align:center; white-space:nowrap;">Etapa</th>
+                                        <th style="padding: 12px 10px; white-space:nowrap;">Seguimiento de la cuenta</th>
+                                        <th style="padding: 12px 10px; white-space:nowrap;">Seguimiento con el objeto</th>
+                                        <th style="padding: 12px 10px; white-space:nowrap;">Teléfono</th>
+                                        <th style="padding: 12px 10px; white-space:nowrap;">Tiempo de seguimiento</th>
+                                        <th style="padding: 12px 10px; white-space:nowrap;">Resultado</th>
+                                        <th style="padding: 12px 10px; white-space:nowrap;">Tiempo PTP</th>
+                                        <th style="padding: 12px 10px;">Registros de seguimiento</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+
+                    footerContainer.innerHTML = `
+                        <span style="color:#9ca3af; font-size:12px;">Mostrando ${records.length > 0 ? start + 1 : 0} a ${end} de ${records.length} registros</span>
+                        <div style="display:flex; gap: 8px;">
+                            <button id="modal-hist-prev" style="padding:6px 12px; background:#334155; color:#fff; border:none; border-radius:4px; cursor:${currentPage > 1 ? 'pointer' : 'not-allowed'}; opacity:${currentPage > 1 ? '1' : '0.5'}; font-weight:bold;">◀ Ant</button>
+                            <span style="color:#e2e8f0; padding:6px 5px; font-size:12px; font-weight:bold;">Pág. ${currentPage} / ${totalPages}</span>
+                            <button id="modal-hist-next" style="padding:6px 12px; background:#334155; color:#fff; border:none; border-radius:4px; cursor:${currentPage < totalPages ? 'pointer' : 'not-allowed'}; opacity:${currentPage < totalPages ? '1' : '0.5'}; font-weight:bold;">Sig ▶</button>
+                        </div>
+                    `;
+
+                    const btnPrev = footerContainer.querySelector('#modal-hist-prev');
+                    const btnNext = footerContainer.querySelector('#modal-hist-next');
+
+                    if (currentPage > 1) { btnPrev.onclick = () => { currentPage--; renderPage(); }; }
+                    if (currentPage < totalPages) { btnNext.onclick = () => { currentPage++; renderPage(); }; }
+                };
+
+                renderPage(); 
+
+                bodyContainer.append(tableContainer, footerContainer);
+                modal.append(header, bodyContainer);
+                overlay.appendChild(modal);
+                overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+                document.body.appendChild(overlay);
+            };
+
             // 🔥 ASIGNAMOS EL EVENTO AL PANEL (NO AL BODY) PARA EVITAR CLICS FANTASMAS 🔥
             panel.addEventListener('click', async function(e) {
                 if(e.target && e.target.id == 'btn-prev') { if(window.appState.currentPage > 1) { window.appState.currentPage--; renderTable(); } }
                 if(e.target && e.target.id == 'btn-next') { if(window.appState.currentPage < Math.ceil(window.appState.filteredData.length / window.appState.pageSize)) { window.appState.currentPage++; renderTable(); } }
                 
-                // 🔥 ABRIR INDIVIDUAL EN SEGUNDO PLANO 🔥
+                // 🔥 1. MOSTRAR HISTORIAL EN MINI MODAL 🔥
+                if(e.target && e.target.classList.contains('btn-historial-fila')) {
+                    if(e.target.innerText === "⏳") return; 
+                    
+                    const uid = e.target.getAttribute('data-uid'); const tid = e.target.getAttribute('data-tid');
+                    const c = window.appState.filteredData.find(x => String(x.userId) === String(uid) && String(x.taskId) === String(tid));
+                    
+                    if (c) {
+                        const originalBg = e.target.style.backgroundColor;
+                        e.target.innerText = "⏳"; e.target.style.backgroundColor = "#fbbf24";
+                        
+                        try {
+                            const t = Date.now();
+                            const v = Math.floor(Math.random() * 1000000000);
+                            const hResp = await fetch(`${window.appState.baseUrl}/api/manage/urge/task/getFollowPage?v=${v}&t=${t}`, { 
+                                method: 'POST', 
+                                headers: { 
+                                    'Authentication': window.appState.token, 
+                                    'Content-Type': 'application/json;charset=UTF-8',
+                                    'Accept': 'application/json, text/plain, */*'
+                                }, 
+                                body: JSON.stringify({ taskId: String(c.taskId), orderId: String(c.orderId), current: "1", size: "100" }) 
+                            });
+                            
+                            const hData = await hResp.json();
+                            e.target.innerText = "Ver"; e.target.style.backgroundColor = originalBg;
+                            
+                            if(hData.code === 401 || hData.code === 403) return alert("Token expirado.");
+                            
+                            mostrarModalHistorial(c, hData.data?.records || []);
+                        } catch(err) {
+                            console.error(err);
+                            e.target.innerText = "Error"; e.target.style.backgroundColor = "#ef4444";
+                            setTimeout(() => { e.target.innerText = "Ver"; e.target.style.backgroundColor = originalBg; }, 1500);
+                        }
+                    }
+                }
+
+                // 🔥 2. ABRIR INDIVIDUAL EN SEGUNDO PLANO 🔥
                 if(e.target && e.target.classList.contains('btn-abrir-fila')) {
-                    // 🛡️ Seguro Anti-Doble Clic
                     if(e.target.innerText === "⏳") return; 
                     
                     const uid = e.target.getAttribute('data-uid'); const tid = e.target.getAttribute('data-tid');
@@ -992,66 +1452,17 @@
                 }
             });
             const rightCol = document.createElement('div');
-            Object.assign(rightCol.style, { width: '220px', display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px', overflowY: 'auto' });
+            Object.assign(rightCol.style, { width: '280px', display: 'flex', flexDirection: 'column', gap: '15px', padding: '15px', overflowY: 'auto' });
 
-            // 🔥 MINI PANELES (AHORA CON SOPORTE DE COLORES DINÁMICOS) 🔥
-            const createMiniPanel = (title, dataObj, defaultColor, isAppPanel = false) => {
-                const wrap = document.createElement('div'); Object.assign(wrap.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: `1px solid ${defaultColor}40` });
-                
-                const listHtml = Object.entries(dataObj).sort((a,b)=>b[1]-a[1]).map(([k,v]) => {
-                    const itemColor = isAppPanel && window.getAppColor ? window.getAppColor(k) : '#e2e8f0';
-                    return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted rgba(255,255,255,0.1);"><span style="color:${itemColor};font-weight:${isAppPanel?'bold':'normal'};">${k}</span><span style="color:#fbbf24;font-weight:bold;">${v}</span></div>`;
-                }).join('');
+            // 1️⃣ SEGUIMIENTOS DE HOY (Ocupando la corona de la derecha)
+            const notasHoyPanel = document.createElement('div');
+            notasHoyPanel.id = 'crm-notas-hoy-panel';
+            Object.assign(notasHoyPanel.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', border: '1px solid #8b5cf6', display: 'flex', flexDirection: 'column', padding: '10px', minHeight: '200px', flexShrink: '0' });
+            rightCol.appendChild(notasHoyPanel);
 
-                wrap.innerHTML = `<div style="color:${defaultColor};font-size:11px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;border-bottom:1px solid ${defaultColor}40;padding-bottom:4px;">${title}</div><div style="max-height:150px;overflow-y:auto;font-size:11px;">${listHtml}</div>`;
-                return wrap;
-            };
-
-            const appsSummary = {}; window.appState.rawData.forEach(c => { const app = c.appName || c.productName || 'N/A'; appsSummary[app] = (appsSummary[app] || 0) + 1; });
-            rightCol.appendChild(createMiniPanel("Apps (General)", appsSummary, '#0ea5e9', true)); // Pasa "true" para activar colores
-
-            // 🔥 Sin restricción de etapa para verificar la vista
-            const overdueSummary = {}; window.appState.rawData.forEach(c => { if(c.overdueDay !== undefined) overdueSummary[`${c.overdueDay} días`] = (overdueSummary[`${c.overdueDay} días`] || 0) + 1; });
-            rightCol.appendChild(createMiniPanel("Días Atraso", overdueSummary, '#d946ef'));
-
-            // 🔥 NUEVO PANEL: IDs Repetidos
-            const countsIds = {}; window.appState.rawData.forEach(c => countsIds[c.userId] = (countsIds[c.userId] || 0) + 1);
-            const duplicates = Object.entries(countsIds).filter(([k,v]) => v > 1).reduce((obj, [k,v]) => { obj[k] = v; return obj; }, {});
-            
-            const dupWrap = document.createElement('div'); 
-            Object.assign(dupWrap.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: `1px solid #ef444440` });
-            
-            if (Object.keys(duplicates).length > 0) {
-                dupWrap.innerHTML = `<div style="color:#ef4444;font-size:11px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;border-bottom:1px solid #ef444440;padding-bottom:4px;">IDs Repetidos</div><div style="max-height:150px;overflow-y:auto;font-size:11px;">` + Object.entries(duplicates).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted rgba(255,255,255,0.1);"><span class="copy-id" data-id="${k}" style="cursor:pointer;" title="Doble clic para copiar">${k}</span><span style="color:#ef4444;font-weight:bold;">${v} préstamos</span></div>`).join('') + `</div>`;
-            } else {
-                dupWrap.innerHTML = `<div style="color:#10b981;font-size:11px;font-weight:bold;margin-bottom:4px;text-transform:uppercase;border-bottom:1px solid #10b98140;padding-bottom:4px;">Sin Duplicados</div><div style="font-size:11px; color:#9ca3af;">Total clientes: <strong style="color:#fff">${window.appState.rawData.length}</strong>.<br>No hay IDs repetidos en la cartera.</div>`;
-            }
-            rightCol.appendChild(dupWrap);
-
-            // 🔥 NUEVO PANEL: Clientes Pagados (Usando el Fetch de UrgeTaskPage) 🔥
-            const paidWrap = document.createElement('div');
-            Object.assign(paidWrap.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: `1px solid #10b98140` });
-
-            if (window.appState.paidData.length > 0) {
-                let listHtml = window.appState.paidData.map(p => {
-                    const tipo = p.closeType == 1 ? 'Total' : (p.closeType == 2 ? 'Prórroga' : 'Otro');
-                    const color = p.closeType == 1 ? '#39ff14' : '#f59e0b';
-                    return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted rgba(255,255,255,0.1);">
-                        <span class="copy-id" data-id="${p.userId}" style="cursor:pointer;" title="Doble clic para copiar">${p.userId}</span>
-                        <span style="color:${color};font-weight:bold;">${tipo}</span>
-                    </div>`;
-                }).join('');
-
-                paidWrap.innerHTML = `<div style="color:#39ff14;font-size:11px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;border-bottom:1px solid rgba(57,255,20,0.3);padding-bottom:4px;">Últimos Pagos</div><div style="max-height:150px;overflow-y:auto;font-size:11px;">${listHtml}</div>`;
-            } else {
-                paidWrap.innerHTML = `<div style="color:#10b981;font-size:11px;font-weight:bold;margin-bottom:4px;text-transform:uppercase;border-bottom:1px solid #10b98140;padding-bottom:4px;">Últimos Pagos</div><div style="font-size:11px; color:#9ca3af;">No hay pagos recientes.</div>`;
-            }
-            rightCol.appendChild(paidWrap);
-
-            // 🔥 NUEVO PANEL: BUSCADOR EXCEL PERSONALIZADO (MUDADO A LA DERECHA) 🔥
+            // 2️⃣ FILTRO EXCEL
             const searchWrap = document.createElement('div');
-            Object.assign(searchWrap.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: '1px solid rgba(14,165,233,0.4)', display: 'flex', flexDirection: 'column', gap: '8px' });
-            
+            Object.assign(searchWrap.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: '1px solid rgba(14,165,233,0.4)', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: '0' });
             searchWrap.innerHTML = `
                 <div style="color:#0ea5e9; font-size:11px; font-weight:bold; text-transform:uppercase; border-bottom:1px solid rgba(14,165,233,0.3); padding-bottom:4px;">Filtro Excel / IDs</div>
                 <textarea id="f-search-text" placeholder="Pega teléfonos o IDs..." style="width: 100%; height: 50px; max-height: 150px; background: rgba(0,0,0,0.5); color: #0ea5e9; border: 1px dotted rgba(14,165,233,0.4); border-radius: 4px; padding: 6px; font-size: 11px; outline: none; resize: none; font-family: 'Courier New', Courier, monospace; overflow-y: auto; box-sizing: border-box; box-shadow: inset 0 0 5px rgba(14,165,233,0.05);"></textarea>
@@ -1059,38 +1470,37 @@
             `;
             rightCol.appendChild(searchWrap);
 
-            // Truco para disparar el filtro desde afuera del bloque original
-            const dispararFiltro = () => {
-                const selectRepay = document.getElementById('f-repay');
-                if(selectRepay) selectRepay.dispatchEvent(new Event('change', { bubbles: true }));
-            };
+            // 3️⃣ DÍAS DE ATRASO
+            const stage = (window.appState.stageGeneral || '').toUpperCase();
+            if (stage !== 'T0' && stage !== 'T1') {
+                const overdueSummary = {}; window.appState.rawData.forEach(c => { if(c.overdueDay !== undefined) overdueSummary[`${c.overdueDay} días`] = (overdueSummary[`${c.overdueDay} días`] || 0) + 1; });
+                rightCol.appendChild(createMiniPanel("Días Atraso", overdueSummary, '#d946ef'));
+            }
 
-            // Eventos del nuevo buscador en columna derecha
+            // 4️⃣ DUPLICADOS
+            const countsIds = {}; window.appState.rawData.forEach(c => countsIds[c.userId] = (countsIds[c.userId] || 0) + 1);
+            const duplicates = Object.entries(countsIds).filter(([k,v]) => v > 1).reduce((obj, [k,v]) => { obj[k] = v; return obj; }, {});
+            if (Object.keys(duplicates).length > 0) {
+                const dupWrap = document.createElement('div'); 
+                Object.assign(dupWrap.style, { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '10px', border: `1px solid #ef444440`, flexShrink: '0' });
+                dupWrap.innerHTML = `<div style="color:#ef4444;font-size:11px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;border-bottom:1px solid #ef444440;padding-bottom:4px;">IDs Repetidos</div><div style="max-height:150px;overflow-y:auto;font-size:11px;">` + Object.entries(duplicates).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted rgba(255,255,255,0.1);"><span class="copy-id" data-id="${k}" style="cursor:pointer;" title="Doble clic para copiar">${k}</span><span style="color:#ef4444;font-weight:bold;">${v} préstamos</span></div>`).join('') + `</div>`;
+                rightCol.appendChild(dupWrap);
+            }
+
+            // Eventos del buscador Excel
+            const dispararFiltro = () => { const selectRepay = document.getElementById('f-repay'); if(selectRepay) selectRepay.dispatchEvent(new Event('change', { bubbles: true })); };
             setTimeout(() => {
                 const searchInput = document.getElementById('f-search-text');
                 const btnLimpiar = document.getElementById('btn-limpiar-search');
-
                 if (searchInput) {
                     searchInput.addEventListener('input', function() {
-                        // Se estira o vuelve a tamaño base según haya texto
-                        if (this.value.trim() === '') {
-                            this.style.height = '50px';
-                        } else {
-                            this.style.height = 'auto';
-                            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
-                        }
+                        if (this.value.trim() === '') this.style.height = '50px';
+                        else { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 150) + 'px'; }
                         dispararFiltro();
                     });
-
                     btnLimpiar.onmouseenter = () => { btnLimpiar.style.background = '#ef4444'; btnLimpiar.style.color = '#000'; };
                     btnLimpiar.onmouseleave = () => { btnLimpiar.style.background = 'rgba(239,68,68,0.1)'; btnLimpiar.style.color = '#ef4444'; };
-
-                    btnLimpiar.onclick = (e) => {
-                        e.stopPropagation();
-                        searchInput.value = '';
-                        searchInput.style.height = '50px';
-                        dispararFiltro();
-                    };
+                    btnLimpiar.onclick = (e) => { e.stopPropagation(); searchInput.value = ''; searchInput.style.height = '50px'; dispararFiltro(); };
                 }
             }, 50);
 
@@ -1131,16 +1541,21 @@
                 else if (window.appState.baseUrl.includes('rayodinero')) tz = 'America/Argentina/Buenos_Aires';
 
                 try {
-                    const timeResp = await fetch(`${window.appState.baseUrl}/api/manage/get/time?v=${Date.now()}`, { 
-                        method: 'GET', headers: { 'Authentication': window.appState.token } 
+                    const t = Date.now();
+                    const v = Math.floor(Math.random() * 1000000000);
+                    const timeResp = await fetch(`${window.appState.baseUrl}/api/manage/get/time?v=${v}&t=${t}`, { 
+                        method: 'GET', 
+                        headers: { 
+                            'Authentication': window.appState.token,
+                            'Accept': 'application/json, text/plain, */*'
+                        } 
                     });
                     const timeData = await timeResp.json();
                     
                     if (timeData && timeData.data) {
                         if (typeof timeData.data === 'string' && timeData.data.includes('-')) {
-                            hoyServidor = timeData.data.split(' ')[0]; // Extrae "YYYY-MM-DD" si es texto
+                            hoyServidor = timeData.data.split(' ')[0]; 
                         } else {
-                            // Convierte el Timestamp del servidor a YYYY-MM-DD
                             hoyServidor = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Number(timeData.data)));
                         }
                     }
@@ -1168,7 +1583,6 @@
                 logMsg(`🌍 Día Oficial del CRM (API): ${hoyServidor}`, '#9ca3af'); 
 
                 for (let i = 0; i < targetData.length; i++) {
-                    // ⏸️ 1. Control de STOP y PAUSA
                     if (window.appState.shouldStop) { logMsg(`⏹️ PROCESO DETENIDO.`, '#ef4444'); break; }
                     while (window.appState.isPaused) {
                         await new Promise(r => setTimeout(r, 300));
@@ -1178,18 +1592,27 @@
 
                     const c = targetData[i];
                     
-                    // 🛡️ 2. Chequeo de duplicados en esta misma lista
                     if (!c.userId || processedIds.has(c.userId)) { skipCount++; continue; }
                     processedIds.add(c.userId);
                     
-                    // 🛡️ 3. CHEQUEO DEL HISTORIAL INDIVIDUALIZADO (Titular, Ref1, Ref2)
                     let sentTitular = false, sentRef1 = false, sentRef2 = false;
                     
                     try {
-                        const hResp = await fetch(`${window.appState.baseUrl}/api/manage/urge/task/getFollowPage?v=${Date.now()}`, { 
+                        const t = Date.now();
+                        const v = Math.floor(Math.random() * 1000000000);
+                        const hResp = await fetch(`${window.appState.baseUrl}/api/manage/urge/task/getFollowPage?v=${v}&t=${t}`, { 
                             method: 'POST', 
-                            headers: { 'Authentication': window.appState.token, 'Content-Type': 'application/json' }, 
-                            body: JSON.stringify({ taskId: c.taskId, orderId: c.orderId, current: 1, size: 100 }) 
+                            headers: { 
+                                'Authentication': window.appState.token, 
+                                'Content-Type': 'application/json;charset=UTF-8',
+                                'Accept': 'application/json, text/plain, */*'
+                            }, 
+                            body: JSON.stringify({ 
+                                taskId: String(c.taskId), 
+                                orderId: String(c.orderId), 
+                                current: "1", 
+                                size: "100" 
+                            }) 
                         });
                         const hData = await hResp.json();
                         if(hData.code === 401 || hData.code === 403) { alert("Token expirado."); location.reload(); return; }
@@ -1292,6 +1715,21 @@
                                 const exactNow = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()).replace(',', '');
                                 logMsg(`[+] [${i+1}/${targetData.length}] OK <span style="color:${t.color};">[${t.name}]</span>: ${c.userName} | ${exactNow}`, '#39ff14'); 
                                 successCount++; 
+                                
+                                // 🔥 INYECTAR EN MEMORIA EN VIVO Y RENDERIZAR 🔥
+                                if (!window.appState.gruposNotasHoy) window.appState.gruposNotasHoy = {};
+                                const key = `${t.followTarget}|${mensajeClave}`;
+                                if (!window.appState.gruposNotasHoy[key]) {
+                                    window.appState.gruposNotasHoy[key] = { count: 0, userIds: new Set(), target: String(t.followTarget), nota: mensajeClave };
+                                }
+                                if (!window.appState.gruposNotasHoy[key].userIds.has(c.userId)) {
+                                    window.appState.gruposNotasHoy[key].userIds.add(c.userId);
+                                    window.appState.gruposNotasHoy[key].count++;
+                                }
+                                
+                                if (window.appState.dibujarResultadosEscaneo && Object.keys(window.appState.gruposNotasHoy).length > 0) {
+                                    window.appState.dibujarResultadosEscaneo();
+                                }
                             } else { 
                                 logMsg(`[x] [${i+1}/${targetData.length}] Falló <span style="color:${t.color};">[${t.name}]</span>: ${c.userName}`, '#ef4444'); 
                                 errorCount++; 
