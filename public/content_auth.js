@@ -216,8 +216,8 @@
                 <div>Editor Visual <span class="sst-ctx-icon">✏️</span></div>
                 <div class="sst-submenu" id="sst-submenu-editor">
                     <div class="sst-ctx-item" id="ctx-tool-editor" style="color:#a78bfa;">Abrir Editor Visual <span class="sst-ctx-icon">🚀</span></div>
-                    <div class="sst-ctx-item" id="ctx-tool-ghost" style="color:#d8b4fe;">Modo Fantasma <span class="sst-ctx-icon">👻</span></div>
-                    <div class="sst-ctx-separator"></div>
+<div class="sst-ctx-item" id="ctx-tool-ghost" style="color:#d8b4fe; display:none;">Modo Fantasma <span class="sst-ctx-icon">👻</span></div>
+<div class="sst-ctx-separator"></div>
                     <div class="sst-ctx-item" id="ctx-tool-soporte" style="color:#ef4444;">Soporte <span class="sst-ctx-icon">🆘</span></div>
                 </div>
             </div>
@@ -254,6 +254,10 @@
 
         <div class="sst-ctx-group" id="sst-group-image" style="display:none;">
             <div class="sst-ctx-item" id="ctx-img-view" style="color:#38bdf8; font-weight:bold;">Ver en Visor SST <span class="sst-ctx-icon">📷</span></div>
+            
+            <!-- 👇 NUEVO BOTÓN PARA COPIAR AL PORTAPAPELES 👇 -->
+            <div class="sst-ctx-item" id="ctx-img-copy-blob" style="color:#10b981;">Copiar imagen<span class="sst-ctx-icon">📋</span></div>
+            
             <div class="sst-ctx-separator"></div>
             <div class="sst-ctx-item" id="ctx-img-open">Abrir imagen en nueva pestaña <span class="sst-ctx-icon">👁️</span></div>
             <div class="sst-ctx-item" id="ctx-img-save" title="Descarga silenciosa al PC">Guardar imagen como... <span class="sst-ctx-icon">💾</span></div>
@@ -414,6 +418,9 @@
             // Exclusivo Pestaña "Detail"
             document.getElementById('ctx-tool-plantilla').style.display = isDetail ? 'flex' : 'none';
             document.getElementById('ctx-tool-facebook').style.display = isDetail ? 'flex' : 'none';
+            
+            // 🔥 Lógica añadida: Oculta el menú padre entero si no estamos en Detail
+            document.getElementById('ctx-submenu-editor-trigger').style.display = isDetail ? 'flex' : 'none';
             document.getElementById('ctx-tool-editor').style.display = isDetail ? 'flex' : 'none';
             document.getElementById('ctx-tool-soporte').style.display = isDetail ? 'flex' : 'none';
 
@@ -544,7 +551,7 @@
         if (!user) { showSSTToast('❌ Falta Usuario', true); return; }
         showSSTToast('🔍 Buscando hoja...');
         try {
-            const response = await fetch(`${API_URL}?token=SST_V12_CORP_SECURE_2026_X9&usuario=${user}`);
+            const response = await fetch(`${API_URL}?token=${MASTER_TOKEN}&usuario=${user}`);
             const data = await response.json();
             if (data.id) { window.open('https://docs.google.com/spreadsheets/d/' + data.id + '/edit', '_blank'); showSSTToast('📊 Hoja abierta'); }
             else showSSTToast('❌ Sin hoja asignada', true);
@@ -625,6 +632,50 @@
     // ---------------------------------------------------------
     // FUNCIONES DE IMÁGENES Y TEXTO
     // ---------------------------------------------------------
+    document.getElementById('ctx-img-copy-blob').onclick = () => {
+        if (!urlImagenActiva) return;
+        closeMenuCompletely();
+        showSSTToast("⏳ Procesando imagen ...", false);
+
+        // 1. Pedimos la imagen al background usando tu función segura
+        safeSendMessage({ action: "fetch_image_base64", url: urlImagenActiva }, (response) => {
+            if (!response || !response.success) {
+                showSSTToast("❌ S3 denegó el acceso a la imagen", true);
+                return;
+            }
+
+            // 2. Cargamos el Base64 en memoria
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    // 3. Forzamos formato PNG nativo para WhatsApp
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    canvas.toBlob(async (pngBlob) => {
+                        if (!pngBlob) throw new Error("Fallo Canvas");
+                        
+                        try {
+                            // 4. Inyectamos los píxeles a Windows
+                            await navigator.clipboard.write([
+                                new ClipboardItem({ 'image/png': pngBlob })
+                            ]);
+                            showSSTToast("✅ ¡Copiada! Pégala", false);
+                        } catch (err) {
+                            showSSTToast("❌ Error al pegar", true);
+                        }
+                    }, 'image/png'); // <- CRÍTICO: Forzar salida PNG
+                } catch (e) {
+                    showSSTToast("❌ Error al rasterizar", true);
+                }
+            };
+            img.onerror = () => showSSTToast("❌ Error al procesar imagen", true);
+            img.src = response.base64; 
+        });
+    };
     
     document.getElementById('ctx-img-view').onclick = () => {
         if (!urlImagenActiva) return;
@@ -713,13 +764,15 @@
     // 🛡️ MÓDULO 2: AUTENTICACIÓN, FIREBASE Y ALERTAS (CRM SUITE) 🛡️
     // =========================================================================
     const CONFIG_CRMS = [{
-        'prefix': '+57', 'country': 'COLOMBIA', 'domains': ['https://co-crm.certislink.com'], 'digits': 10
+        'prefix': '+57', 'country': 'COLOMBIA', 'domains': ['https://co-crm.certislink.com', 'https://crm.facilcredito.co'], 'digits': 10
     }, {
-        'prefix': '+52', 'country': 'MÉXICO', 'domains': ['https://mx-crm.certislink.com', 'https://mx-ins-crm.variousplan.com'], 'digits': 10
+        'prefix': '+52', 'country': 'MÉXICO', 'domains': ['https://mx-crm.certislink.com', 'https://crm.cashimex.mx'], 'digits': 10
     }, {
-        'prefix': '+56', 'country': 'CHILE', 'domains': ['https://cl-crm.certislink.com'], 'digits': 9
+        'prefix': '+52', 'country': 'MÉXICO Various', 'domains': ['https://mx-ins-crm.variousplan.com'], 'digits': 10
     }, {
-        'prefix': '+51', 'country': 'PERÚ', 'domains': ['https://pe-crm.certislink.com'], 'digits': 9
+        'prefix': '+56', 'country': 'CHILE', 'domains': ['https://cl-crm.certislink.com', 'https://crm.managecherry.com'], 'digits': 9
+    }, {
+        'prefix': '+51', 'country': 'PERÚ', 'domains': ['https://pe-crm.certislink.com', 'https://crm.cashiper.com'], 'digits': 9
     }, {
         'prefix': '+55', 'country': 'BRASIL', 'domains': ['https://crm.creddireto.com'], 'digits': 11
     }, {
@@ -794,13 +847,16 @@
     let CEREBRO_URL = null;
     let FIREBASE_URL = null;
     let API_URL = null;
-
+    const MASTER_TOKEN = atob("U1NUX1YxMl9DT1JQX1NFQ1VSRV8yMDI2X1g5");
+    
     // Sincronizar el subdominio configurado desde el localStorage de la web
     const currentSubdomain = localStorage.getItem('serverSubdomain');
     if (currentSubdomain && SERVERS_DB[currentSubdomain]) {
         CEREBRO_URL = SERVERS_DB[currentSubdomain].script;
         FIREBASE_URL = SERVERS_DB[currentSubdomain].firebase;
         API_URL = CEREBRO_URL;
+        
+        
     } else {
         console.error("🚨 CRÍTICO: Ningún servidor configurado. Conexión bloqueada.");
     }
@@ -911,10 +967,8 @@
             modal.innerHTML = `
                 <h3 style="margin: 0 0 15px 0; color: #ef4444; font-size: 20px; font-weight: bold;">🚨 Recuperación Total</h3>
                 <p style="margin: 0 0 20px 0; font-size: 14px; color: #cbd5e1; line-height: 1.5;">
-                    Ingresa tus credenciales para <strong>cerrar todas las sesiones activas</strong> en el servidor y limpiar la extensión.
+                    ¿Estás seguro de querer <strong>limpiar todo el almacenamiento local</strong> y reiniciar la extensión?<br><br><i style="color:#34d399;">Tus plantillas de mensaje se mantendrán a salvo.</i>
                 </p>
-                <input type="text" id="rep-user" placeholder="Usuario" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #475569; background: rgba(0,0,0,0.3); color: white; outline: none; box-sizing: border-box; text-align: center; font-size: 14px;">
-                <input type="password" id="rep-pass" placeholder="Contraseña" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #475569; background: rgba(0,0,0,0.3); color: white; outline: none; box-sizing: border-box; text-align: center; font-size: 14px;">
                 <div style="display: flex; justify-content: center; gap: 15px;">
                     <button id="btn-rep-cancel" style="background: transparent; border: 1px solid #64748b; color: #cbd5e1; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
                     <button id="btn-rep-confirm" style="background: #ef4444; border: none; color: white; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 0 10px #ef444480; transition: 0.2s;">Limpiar Todo</button>
@@ -923,11 +977,6 @@
 
             const btnCancel = modal.querySelector('#btn-rep-cancel');
             const btnConfirm = modal.querySelector('#btn-rep-confirm');
-            const inpUser = modal.querySelector('#rep-user');
-            const inpPass = modal.querySelector('#rep-pass');
-
-            const loggedUser = localStorage.getItem('usuarioLogueado');
-            if (loggedUser) inpUser.value = loggedUser;
 
             btnCancel.onmouseover = () => btnCancel.style.background = 'rgba(100, 116, 139, 0.2)';
             btnCancel.onmouseout = () => btnCancel.style.background = 'transparent';
@@ -936,24 +985,13 @@
 
             btnCancel.onclick = () => { overlay.remove(); resolve({ confirmado: false }); };
             
-            const ejecutar = () => { 
-                const u = inpUser.value.trim();
-                const p = inpPass.value.trim();
-                if(!u || !p) {
-                    inpUser.style.borderColor = '#fbbf24'; inpPass.style.borderColor = '#fbbf24';
-                    setTimeout(() => { inpUser.style.borderColor = '#475569'; inpPass.style.borderColor = '#475569'; }, 2000);
-                    return;
-                }
-                overlay.remove(); resolve({ confirmado: true, user: u, pass: p }); 
+            btnConfirm.onclick = () => { 
+                overlay.remove(); 
+                resolve({ confirmado: true }); 
             };
-            
-            btnConfirm.onclick = ejecutar;
-            inpPass.onkeydown = (e) => { if(e.key === 'Enter') ejecutar(); };
 
             overlay.appendChild(modal);
             document.body.appendChild(overlay);
-            
-            if(loggedUser) inpPass.focus(); else inpUser.focus();
         });
     };
     // ==========================================
@@ -1115,8 +1153,9 @@ function showPersistentAlert(msg, msgId) {
 
             localStorage.setItem('ALERT_ACK_' + msgId, Date.now());
             const user = localStorage.getItem('usuarioLogueado');
-            // 🔥 RED BLINDADA
-            const urlLeido = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=LEIDO`;
+            
+            // 🔥 MOTOR HÍBRIDO: Resolución Inteligente
+            const urlLeido = getHybridUrl(msgId, user, 'LEIDO', Date.now());
             
             // 🛠️ FIX: Motor de Insistencia para la alerta roja
             const enviarConInsistencia = (intentosRestantes) => {
@@ -1269,8 +1308,9 @@ function showNotification(message, msgId, type = 'info') {
             closeThisToast(toast);
             localStorage.setItem('NOTIF_ACK_' + msgId, Date.now()); // Memoria Local
             const user = localStorage.getItem('usuarioLogueado');
-            // 🔥 RED BLINDADA
-            const urlAceptado = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=ACEPTADO`;
+            
+            // 🔥 MOTOR HÍBRIDO: Resolución Inteligente
+            const urlAceptado = getHybridUrl(msgId, user, 'ACEPTADO', Date.now());
             
             // 🛠️ FIX: Motor de Insistencia para que no se pierda la confirmación
             const enviarConInsistencia = (intentosRestantes) => {
@@ -1424,7 +1464,7 @@ function showNotification(message, msgId, type = 'info') {
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
     });
-// 🔥 FUNCIÓN GLOBAL DE REPARACIÓN (SIEMPRE DISPONIBLE PARA EL MENÚ OSCURO) 🔥
+// 🔥 FUNCIÓN GLOBAL DE REPARACIÓN (SOLO LIMPIEZA LOCAL) 🔥
     window.SST_GLOBAL_REPAIR = async () => {
         const result = await mostrarModalReparacion();
         if (!result.confirmado) return;
@@ -1462,49 +1502,28 @@ function showNotification(message, msgId, type = 'info') {
         }
 
         try {
-            if (!API_URL) throw new Error('Servidor no configurado');
+            // 🌟 RESPALDO DE PLANTILLAS ANTES DE BORRAR EL CACHÉ 🌟
+            const backupPlantillas = localStorage.getItem('CUSTOM_BTNS_LIST');
 
-            mostrarProgreso('Validando credenciales...', '🔐', '#3b82f6'); 
+            mostrarProgreso('Reiniciando memoria local...', '♻️', '#f59e0b'); 
             
-            const urlLogin = new URL(API_URL);
-            urlLogin.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9');
-            urlLogin.searchParams.append('action', 'login');
-            urlLogin.searchParams.append('usuario', result.user);
-            urlLogin.searchParams.append('contrasena', result.pass);
-            urlLogin.searchParams.append('sessionId', 'repair_check_' + Date.now());
-
-            const loginRes = await new Promise(resolve => {
-                safeSendMessage({ action: 'proxy_fetch', url: urlLogin.toString(), options: { method: 'GET' } }, resolve);
-            });
-
-            if (!loginRes || !loginRes.success || !loginRes.data || !loginRes.data.success) {
-                throw new Error('Contraseña Incorrecta');
-            }
-
-            mostrarProgreso('Borrando sesiones activas...', '🔥', '#ef4444'); 
-            
-            const urlKill = new URL(API_URL);
-            urlKill.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9');
-            urlKill.searchParams.append('action', 'kill_all');
-            urlKill.searchParams.append('usuario', result.user);
-            
-            await new Promise(resolve => {
-                safeSendMessage({ action: 'proxy_fetch', url: urlKill.toString(), options: { method: 'GET' } }, resolve);
-            });
-
-            mostrarProgreso('Reiniciando extensión...', '♻️', '#f59e0b'); 
-            
-            if (localStorage.getItem('usuarioLogueado')) logoutAndClean(); 
-            localStorage.clear(); sessionStorage.clear();
+            // 🔥 BORRADO PURAMENTE LOCAL, SE ELIMINÓ EL FETCH AL SCRIPT URL
+            localStorage.clear(); 
+            sessionStorage.clear();
             try { if (chrome && chrome.storage && chrome.storage.local) chrome.storage.local.clear(); } catch(e) {}
             
-            mostrarProgreso('¡Restauración Completa!', '✅', '#10b981'); 
+            // 🌟 RESTAURACIÓN AUTOMÁTICA DE PLANTILLAS 🌟
+            if (backupPlantillas) {
+                localStorage.setItem('CUSTOM_BTNS_LIST', backupPlantillas);
+            }
+
+            mostrarProgreso('¡Limpieza Completada!', '✅', '#10b981'); 
             
             setTimeout(() => window.location.reload(true), 1500);
 
         } catch (e) {
             targetBtn.innerHTML = '<span style="font-size:24px; font-weight:bold; padding-bottom:4px; padding-right:2px;">↺</span>';
-            mostrarProgreso(e.message || 'Fallo de conexión', '❌', '#ef4444');
+            mostrarProgreso('Error al limpiar caché', '❌', '#ef4444');
             setTimeout(() => {
                 const cartel = document.getElementById('toast-reparacion');
                 if (cartel) {
@@ -1570,7 +1589,7 @@ function showNotification(message, msgId, type = 'info') {
         
         if (user && sessId) {
             const url = new URL(API_URL);
-            url.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9');
+            url.searchParams.append('token', MASTER_TOKEN);
             url.searchParams.append('action', 'logout');
             url.searchParams.append('usuario', user);
             url.searchParams.append('sessionId', sessId);
@@ -1645,8 +1664,51 @@ function showNotification(message, msgId, type = 'info') {
             return { wrap, inp };
         };
 
+        // 👇 INICIO: INPUTS CON FORZADO DE FORMATO Y ORDEN CORREGIDO 👇
         const userInput = createInput('Ingrese su usuario', 'text', '👤');
+        userInput.inp.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/\s+/g, ''); // Forzar Mayúsculas y bloquear espacios
+        });
+
         const passInput = createInput('Ingrese su contraseña', 'password', '');
+        passInput.inp.addEventListener('input', function() {
+            this.value = this.value.replace(/\s+/g, ''); // Bloquear espacios (Mayúsculas/Minúsculas libres)
+        });
+
+        const serverInput = createInput('Escribe tu servidor', 'text', '🌐');
+        
+        // 🔥 NUEVO: VALIDACIÓN EN TIEMPO REAL Y GUARDADO EN LOCALSTORAGE 🔥
+        serverInput.inp.addEventListener('input', function() {
+            const val = this.value.toLowerCase().replace(/\s+/g, '');
+            this.value = val;
+            
+            if (val === '') {
+                this.style.borderColor = 'rgba(255,255,255,0.4)';
+                this.style.boxShadow = 'none';
+            } else if (SERVERS_DB[val]) {
+                this.style.borderColor = '#34d399'; // Verde neón (Éxito)
+                this.style.boxShadow = '0 0 10px rgba(52, 211, 153, 0.5)';
+                
+                // Guardar en memoria en tiempo real
+                localStorage.setItem('serverSubdomain', val);
+                CEREBRO_URL = SERVERS_DB[val].script;
+                FIREBASE_URL = SERVERS_DB[val].firebase;
+                API_URL = CEREBRO_URL;
+                
+                
+            } else {
+                this.style.borderColor = '#ef4444'; // Rojo (Peligro)
+                this.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.5)';
+            }
+        });
+
+        const currentSub = localStorage.getItem('serverSubdomain');
+        if (currentSub) {
+            serverInput.inp.value = currentSub;
+            // Disparar el evento para que se pinte de verde automáticamente al cargar
+            serverInput.inp.dispatchEvent(new Event('input'));
+        }
+        // 👆 FIN INPUTS CON FORZADO DE FORMATO 👇
 
         const btnLogin = document.createElement('button');
         btnLogin.id = 'crm-main-login-btn'; 
@@ -1671,38 +1733,24 @@ function showNotification(message, msgId, type = 'info') {
 
         btnRepair.onclick = async () => {
             const inputUser = userInput.inp.value.trim();
-            const inputPass = passInput.inp.value.trim();
 
-            if (!inputUser || !inputPass) {
-                msgBox.innerText = '⚠️ Escribe Usuario y Contraseña para Reparar';
+            if (!inputUser) {
+                msgBox.innerText = '⚠️ Escribe tu Usuario para Reparar';
                 msgBox.style.color = '#fbbf24';
                 userInput.inp.style.borderColor = '#fbbf24';
                 setTimeout(() => userInput.inp.style.borderColor = 'rgba(255,255,255,0.4)', 2000);
                 return;
             }
 
-            if (confirm(`🚨 MODO RECUPERACIÓN TOTAL\n\nUsuario: ${inputUser}\n\n1. Validar tus credenciales.\n2. ELIMINAR todas tus sesiones del Servidor.\n3. Reiniciar la extensión de fábrica.\n\n¿Proceder?`)) {
-                btnRepair.innerText = '🔐 VALIDANDO...'; btnRepair.disabled = true;
+            if (confirm(`🚨 MODO RECUPERACIÓN TOTAL\n\nUsuario: ${inputUser}\n\n1. ELIMINAR todas tus sesiones del Servidor.\n2. Reiniciar la extensión de fábrica.\n3. Tus plantillas se mantendrán guardadas.\n\n¿Proceder?`)) {
+                btnRepair.innerText = '🔥 BORRANDO SESIONES...'; btnRepair.disabled = true;
 
                 try {
-                    const urlLogin = new URL(API_URL);
-                    urlLogin.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9'); // 🛡️ LLAVE MAESTRA
-                    urlLogin.searchParams.append('action', 'login');
-                    urlLogin.searchParams.append('usuario', inputUser);
-                    urlLogin.searchParams.append('contrasena', inputPass);
-                    urlLogin.searchParams.append('sessionId', 'repair_check_' + Date.now());
+                    // 🌟 RESPALDO DE PLANTILLAS 🌟
+                    const backupPlantillas = localStorage.getItem('CUSTOM_BTNS_LIST');
 
-                    const loginRes = await new Promise(resolve => {
-                        safeSendMessage({ action: 'proxy_fetch', url: urlLogin.toString(), options: { method: 'GET' } }, resolve);
-                    });
-
-                    if (!loginRes || !loginRes.success || !loginRes.data || !loginRes.data.success) {
-                        throw new Error('Contraseña Incorrecta');
-                    }
-
-                    btnRepair.innerText = '🔥 BORRANDO SESIONES...';
                     const urlKill = new URL(API_URL);
-                    urlKill.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9'); // 🛡️ LLAVE MAESTRA
+                    urlKill.searchParams.append('token', MASTER_TOKEN); // 🛡️ LLAVE MAESTRA
                     urlKill.searchParams.append('action', 'kill_all');
                     urlKill.searchParams.append('usuario', inputUser);
                     
@@ -1714,6 +1762,11 @@ function showNotification(message, msgId, type = 'info') {
                     localStorage.clear(); sessionStorage.clear();
                     try { if (chrome && chrome.storage && chrome.storage.local) chrome.storage.local.clear(); } catch(e) {}
                     
+                    // 🌟 RESTAURACIÓN DE PLANTILLAS 🌟
+                    if (backupPlantillas) {
+                        localStorage.setItem('CUSTOM_BTNS_LIST', backupPlantillas);
+                    }
+
                     setTimeout(() => window.location.reload(true), 1500);
 
                 } catch (e) {
@@ -1725,17 +1778,707 @@ function showNotification(message, msgId, type = 'info') {
         };
 
         const msgBox = document.createElement('div');
-        Object.assign(msgBox.style, { minHeight: '20px', fontSize: '14px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.8)', textAlign: 'center' });
+        msgBox.id = 'temp-msg-box'; // Lo declaramos aquí de una vez
+        Object.assign(msgBox.style, { 
+            minHeight: '0', fontSize: '15px', fontWeight: 'bold', textAlign: 'center', 
+            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
+            borderRadius: '12px', boxSizing: 'border-box', width: '100%', maxWidth: '350px',
+            textShadow: '0 1px 2px rgba(0,0,0,0.5)', margin: '0 auto', opacity: '0', 
+            transform: 'scale(0.9)', lineHeight: '1.4'
+        });
+
+        // 🔥 MAGIA: Observador automático para convertir cualquier texto en una Burbuja Estética 🔥
+        new MutationObserver(() => {
+            const text = msgBox.innerText.trim();
+            if (text !== '') {
+                msgBox.style.padding = '12px 15px';
+                msgBox.style.marginTop = '15px';
+                msgBox.style.opacity = '1';
+                msgBox.style.transform = 'scale(1)'; // Animación de rebote (pop-in)
+                
+                const lowerText = text.toLowerCase();
+                
+                // 🔴 BURBUJA DE ERROR (Credenciales incorrectas, no existe, etc)
+                if (lowerText.includes('❌') || lowerText.includes('error') || lowerText.includes('incorrect') || lowerText.includes('no existe') || lowerText.includes('falló') || lowerText.includes('⛔')) {
+                    msgBox.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                    msgBox.style.border = '1px solid #ef4444';
+                    msgBox.style.color = '#fca5a5'; 
+                    msgBox.style.boxShadow = '0 5px 15px rgba(239, 68, 68, 0.25)';
+                } 
+                // 🟡 BURBUJA DE ADVERTENCIA (Faltan campos, etc)
+                else if (lowerText.includes('⚠️') || lowerText.includes('requerida')) {
+                    msgBox.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
+                    msgBox.style.border = '1px solid #f59e0b';
+                    msgBox.style.color = '#fcd34d';
+                    msgBox.style.boxShadow = '0 5px 15px rgba(245, 158, 11, 0.25)';
+                } 
+                // 🟢 BURBUJA DE ÉXITO (Acceso autorizado)
+                else if (lowerText.includes('✅') || lowerText.includes('autorizado') || lowerText.includes('borradas')) {
+                    msgBox.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+                    msgBox.style.border = '1px solid #10b981';
+                    msgBox.style.color = '#6ee7b7';
+                    msgBox.style.boxShadow = '0 5px 15px rgba(16, 185, 129, 0.25)';
+                } 
+                // 🔵 BURBUJA NEUTRAL / CARGANDO (Verificando, ingresando...)
+                else {
+                    msgBox.style.backgroundColor = 'rgba(56, 189, 248, 0.15)';
+                    msgBox.style.border = '1px solid #38bdf8';
+                    msgBox.style.color = '#bae6fd';
+                    msgBox.style.boxShadow = '0 5px 15px rgba(56, 189, 248, 0.25)';
+                }
+            } else {
+                // Si se limpia el texto, escondemos la burbuja elegantemente
+                msgBox.style.padding = '0';
+                msgBox.style.marginTop = '0';
+                msgBox.style.opacity = '0';
+                msgBox.style.transform = 'scale(0.9)';
+                msgBox.style.border = 'none';
+                msgBox.style.backgroundColor = 'transparent';
+                msgBox.style.boxShadow = 'none';
+            }
+        }).observe(msgBox, { childList: true, characterData: true, subtree: true });
+
+        // 👇 INICIO BLOQUE NUEVO: ENLACES Y MODALES DE REGISTRO/RECUPERACIÓN 👇
+        const extraLinksDiv = document.createElement('div');
+        Object.assign(extraLinksDiv.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%', maxWidth: '350px', marginTop: '5px' });
+        
+        const topLinksRow = document.createElement('div');
+        Object.assign(topLinksRow.style, { display: 'flex', justifyContent: 'space-between', width: '100%' });
+
+        const linkRegister = document.createElement('a');
+        linkRegister.innerText = 'Crear cuenta nueva';
+        Object.assign(linkRegister.style, { color: '#34d399', cursor: 'pointer', fontSize: '13px', textDecoration: 'none', fontWeight: 'bold' });
+        linkRegister.onmouseenter = () => linkRegister.style.textDecoration = 'underline';
+        linkRegister.onmouseleave = () => linkRegister.style.textDecoration = 'none';
+
+        const linkRecover = document.createElement('a');
+        linkRecover.innerText = '¿Olvidaste tu contraseña?';
+        Object.assign(linkRecover.style, { color: '#94a3b8', cursor: 'pointer', fontSize: '13px', textDecoration: 'none' });
+        linkRecover.onmouseenter = () => linkRecover.style.textDecoration = 'underline';
+        linkRecover.onmouseleave = () => linkRecover.style.textDecoration = 'none';
+
+        topLinksRow.append(linkRegister, linkRecover);
+
+        const linkChangePass = document.createElement('a');
+        linkChangePass.innerText = 'Cambiar contraseña actual';
+        Object.assign(linkChangePass.style, { color: '#38bdf8', cursor: 'pointer', fontSize: '13px', textDecoration: 'none', fontWeight: 'bold' });
+        linkChangePass.onmouseenter = () => linkChangePass.style.textDecoration = 'underline';
+        linkChangePass.onmouseleave = () => linkChangePass.style.textDecoration = 'none';
+
+        extraLinksDiv.append(topLinksRow, linkChangePass);
+
+        const crearSubModal = (tituloHtml, contenidoHtml) => {
+            const subOverlay = document.createElement('div');
+            Object.assign(subOverlay.style, {
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                backgroundColor: 'rgba(10, 15, 30, 0.95)', backdropFilter: 'blur(10px)',
+                display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: '10',
+                borderRadius: 'inherit'
+            });
+
+            const box = document.createElement('div');
+            Object.assign(box.style, {
+                width: '100%', maxWidth: '380px', padding: '30px 20px', display: 'flex', flexDirection: 'column', gap: '15px'
+            });
+
+            box.innerHTML = `<h2 style="color: white; text-align: center; margin-top:0; margin-bottom: 10px;">${tituloHtml}</h2>` + contenidoHtml;
+            subOverlay.appendChild(box);
+            overlay.appendChild(subOverlay);
+            return { subOverlay, box };
+        };
+
+        linkRegister.onclick = () => {
+            const { subOverlay, box } = crearSubModal('📝 Registro de Agente', `
+                <input type="text" id="reg-user" placeholder="Usuario" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; margin-bottom: 5px;">
+                
+                <!-- 👇 Contraseñas movidas aquí arriba 👇 -->
+                <div style="position: relative; width: 100%; margin-bottom: 5px;">
+                    <input type="password" id="reg-pass" placeholder="Contraseña Nueva" class="crm-login-input" style="width: 100%; padding: 12px 50px 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box;">
+                    <span id="reg-pass-eye" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: #fff; font-size: 20px; cursor: pointer; opacity: 0.9; user-select: none; z-index: 10;">👁️</span>
+                </div>
+                <input type="password" id="reg-pass-repeat" placeholder="Repetir Contraseña Nueva" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; margin-bottom: 5px; transition: 0.3s;">
+
+                <!-- 👇 Nombre y correo movidos hacia abajo 👇 -->
+                <input type="text" id="reg-name" placeholder="Nombre y Apellido" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; margin-bottom: 5px;">
+                <input type="email" id="reg-email" placeholder="Correo para recuperar clave" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; margin-bottom: 5px;">
+                
+                <!-- 👇 Contenedor para el menú de banderas Glassmorphism 👇 -->
+                <input type="hidden" id="reg-country" value="BO">
+                <div id="custom-country-wrap" style="position: relative; width: 100%; margin-top: 5px;"></div>
+
+                <input type="text" id="reg-server" placeholder="Servidor" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; margin-top: 5px; transition: border-color 0.3s, box-shadow 0.3s;">
+
+                <button id="btn-do-register" style="width: 100%; padding: 15px; border-radius: 50px; border: none; background: #34d399; color: #000; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 16px; box-shadow: 0 4px 15px rgba(52, 211, 153, 0.4);">CREAR CUENTA</button>
+                <button id="btn-cancel-register" style="width: 100%; padding: 10px; border-radius: 50px; border: 1px solid #64748b; background: transparent; color: #94a3b8; font-weight: bold; cursor: pointer; margin-top: 5px;">Volver</button>
+                <div id="reg-msg" style="text-align: center; font-size: 13px; font-weight: bold; min-height: 20px;"></div>
+            `);
+
+            // 🔥 CREAR EL PANEL LATERAL ABSOLUTO (FUERA DEL CENTRO) 🔥
+            if (!document.getElementById('css-panel-info')) {
+                const stylePanel = document.createElement('style');
+                stylePanel.id = 'css-panel-info';
+                // En pantallas pequeñas se ocultará para no aplastar el formulario
+                stylePanel.innerHTML = `@media (max-width: 900px) { .panel-info-server { display: none !important; } }`;
+                document.head.appendChild(stylePanel);
+            }
+
+            const panelIzquierdo = document.createElement('div');
+            panelIzquierdo.className = 'panel-info-server';
+            Object.assign(panelIzquierdo.style, {
+                position: 'absolute',
+                left: '8%', // Lo enviamos bien a la izquierda
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '280px',
+                background: 'rgba(15, 23, 42, 0.85)',
+                backdropFilter: 'blur(10px)',
+                border: '2px solid #38bdf8',
+                padding: '30px 25px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                color: '#e2e8f0',
+                lineHeight: '1.6',
+                textAlign: 'center',
+                boxShadow: '0 15px 40px rgba(0,0,0,0.5), 0 0 20px rgba(56,189,248,0.2)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                zIndex: '10',
+                overflow: 'hidden'
+            });
+
+            panelIzquierdo.innerHTML = `
+                <div style="position: absolute; top: -30px; left: -30px; width: 120px; height: 120px; background: radial-gradient(circle, rgba(56,189,248,0.3) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
+                <div style="font-size: 38px; margin-bottom: 15px; text-shadow: 0 0 15px rgba(56,189,248,0.5);">ℹ️</div>
+                <b style="color: #38bdf8; font-size: 17px; margin-bottom: 12px;">¿Trabajas individualmente?</b>
+                <p style="margin: 0 0 20px 0; font-size: 14px;">Copia y pega este servidor para registrarte sin dependencia:</p>
+                
+                <!-- BOTÓN COPIABLE (Con Auto-Pegado) -->
+                <div onclick="navigator.clipboard.writeText('server-57'); const icon = this.querySelector('span'); icon.innerText='✅'; setTimeout(()=>icon.innerText='📋', 1500); document.getElementById('reg-server').value='server-57'; document.getElementById('reg-server').dispatchEvent(new Event('input'));" style="display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 12px; border: 1px dashed #38bdf8; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(56, 189, 248, 0.2)'" onmouseout="this.style.background='rgba(0,0,0,0.6)'" title="Clic para Copiar y Pegar automáticamente">
+                    <b style="color: #34d399; font-size: 20px; letter-spacing: 1px; margin-right: 12px; pointer-events: none;">server-57</b>
+                    <span style="font-size: 20px; pointer-events: none;">📋</span>
+                </div>
+                
+                <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <p style="margin: 0 0 10px 0; color: #94a3b8; font-size: 13px;">Si vienes de un TL, pregúntale el ID de su servidor.</p>
+                    <span style="color: #fcd34d; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; font-weight: bold; background: rgba(252, 211, 77, 0.1); padding: 4px 8px; border-radius: 4px;">Para Accesos Especiales</span>
+                </div>
+            `;
+            
+            // Inyectar el panel lateral independiente del cuadro central
+            subOverlay.appendChild(panelIzquierdo);
+
+            // 👇 INICIO: LÓGICA DEL DESPLEGABLE GLASSMORPHISM CON BANDERAS PNG 👇
+            const countryWrap = box.querySelector('#custom-country-wrap');
+            const hiddenCountryInput = box.querySelector('#reg-country');
+            
+            // Array con los datos limpios, sin precios y con URLs directas de banderas PNG
+            const flagData = [
+                { code: 'BO', name: 'Bolivia', img: 'https://flagcdn.com/w40/bo.png' },
+                { code: 'CO', name: 'Colombia', img: 'https://flagcdn.com/w40/co.png' },
+                { code: 'VE', name: 'Venezuela', img: 'https://flagcdn.com/w40/ve.png' },
+                { code: 'OT', name: 'Otro País', img: 'https://cdn-icons-png.flaticon.com/128/3233/3233480.png' } // Ícono de planeta
+            ];
+
+            const customSelect = document.createElement('div');
+            Object.assign(customSelect.style, {
+                width: '100%', padding: '12px 20px', borderRadius: '50px',
+                border: '2px solid rgba(255,255,255,0.4)', backgroundColor: 'rgba(255,255,255,0.1)',
+                color: '#fff', fontSize: '15px', cursor: 'pointer', boxSizing: 'border-box',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.3s'
+            });
+
+            const selectedContent = document.createElement('div');
+            Object.assign(selectedContent.style, { display: 'flex', alignItems: 'center', gap: '10px' });
+            selectedContent.innerHTML = `<img src="${flagData[0].img}" style="width: 24px; border-radius: 4px;"> <span style="font-weight: bold;">${flagData[0].name}</span>`;
+            
+            const arrowIcon = document.createElement('span');
+            arrowIcon.innerText = '▼';
+            arrowIcon.style.transition = 'transform 0.3s';
+            
+            customSelect.append(selectedContent, arrowIcon);
+
+            const optionsContainer = document.createElement('div');
+            Object.assign(optionsContainer.style, {
+                position: 'absolute', top: 'calc(100% + 5px)', left: '0', width: '100%',
+                backgroundColor: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(15px)', webkitBackdropFilter: 'blur(15px)',
+                border: '1px solid rgba(255,255,255,0.2)', borderRadius: '20px', padding: '10px 0',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.8)', display: 'none', flexDirection: 'column', zIndex: '101'
+            });
+
+            flagData.forEach(item => {
+                const optDiv = document.createElement('div');
+                Object.assign(optDiv.style, {
+                    padding: '10px 20px', color: '#e2e8f0', cursor: 'pointer',
+                    fontSize: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px',
+                    transition: 'background 0.2s'
+                });
+                optDiv.innerHTML = `<img src="${item.img}" style="width: 24px; border-radius: 4px;"> <span>${item.name}</span>`;
+
+                optDiv.onmouseenter = () => { optDiv.style.backgroundColor = 'rgba(56, 189, 248, 0.2)'; optDiv.style.color = '#38bdf8'; };
+                optDiv.onmouseleave = () => { optDiv.style.backgroundColor = 'transparent'; optDiv.style.color = '#e2e8f0'; };
+
+                optDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    selectedContent.innerHTML = `<img src="${item.img}" style="width: 24px; border-radius: 4px;"> <span style="font-weight: bold;">${item.name}</span>`;
+                    hiddenCountryInput.value = item.code;
+                    optionsContainer.style.display = 'none';
+                    arrowIcon.style.transform = 'rotate(0deg)';
+                    customSelect.style.borderColor = 'rgba(255,255,255,0.4)';
+                };
+                optionsContainer.appendChild(optDiv);
+            });
+
+            customSelect.onclick = (e) => {
+                e.stopPropagation();
+                const isOpen = optionsContainer.style.display === 'flex';
+                optionsContainer.style.display = isOpen ? 'none' : 'flex';
+                arrowIcon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+                customSelect.style.borderColor = isOpen ? '#38bdf8' : 'rgba(255,255,255,0.4)';
+            };
+
+            document.addEventListener('click', () => {
+                optionsContainer.style.display = 'none';
+                arrowIcon.style.transform = 'rotate(0deg)';
+                customSelect.style.borderColor = 'rgba(255,255,255,0.4)';
+            });
+
+            countryWrap.append(customSelect, optionsContainer);
+            // 👆 FIN LÓGICA DESPLEGABLE GLASSMORPHISM 👆
+
+            box.querySelector('#btn-cancel-register').onclick = () => subOverlay.remove();
+
+            // 🔥 FORZAR FORMATOS EN VIVO (MODAL REGISTRO) 🔥
+            box.querySelector('#reg-user').addEventListener('input', function() { this.value = this.value.toUpperCase().replace(/\s+/g, ''); }); 
+            box.querySelector('#reg-name').addEventListener('input', function() { this.value = this.value.toUpperCase(); }); 
+            box.querySelector('#reg-email').addEventListener('input', function() { this.value = this.value.toLowerCase().replace(/\s+/g, ''); }); 
+            box.querySelector('#reg-pass').addEventListener('input', function() { this.value = this.value.replace(/\s+/g, ''); }); 
+            
+            // 🔥 VALIDACIÓN DINÁMICA DEL SERVIDOR 🔥
+            const regServerInput = box.querySelector('#reg-server');
+            regServerInput.addEventListener('input', function() {
+                const val = this.value.toLowerCase().replace(/\s+/g, '');
+                this.value = val;
+                if (val === '') {
+                    this.style.borderColor = 'rgba(255,255,255,0.4)';
+                    this.style.boxShadow = 'none';
+                } else if (SERVERS_DB[val]) {
+                    this.style.borderColor = '#34d399'; // Verde neón
+                    this.style.boxShadow = '0 0 10px rgba(52, 211, 153, 0.5)';
+                } else {
+                    this.style.borderColor = '#ef4444'; // Rojo peligro
+                    this.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.5)';
+                }
+            });
+
+            box.querySelector('#reg-pass-repeat').addEventListener('input', function() { this.value = this.value.replace(/\s+/g, ''); });
+
+            // 🔥 LÓGICA DINÁMICA DE LA CONTRASEÑA (VER/OCULTAR + REPETIR) 🔥
+            const regPassInput = box.querySelector('#reg-pass');
+            const regPassRepeat = box.querySelector('#reg-pass-repeat');
+            const regPassEye = box.querySelector('#reg-pass-eye');
+            
+            regPassEye.onclick = () => {
+                if (regPassInput.type === 'password') {
+                    // Contraseña visible: no hay necesidad de repetir
+                    regPassInput.type = 'text';
+                    regPassEye.innerText = '🙈';
+                    regPassRepeat.style.display = 'none';
+                    regPassRepeat.value = '';
+                } else {
+                    // Contraseña oculta: exigir repetir
+                    regPassInput.type = 'password';
+                    regPassEye.innerText = '👁️';
+                    regPassRepeat.style.display = 'block';
+                }
+            };
+
+            box.querySelector('#btn-do-register').onclick = () => {
+                const u = box.querySelector('#reg-user').value.trim(); 
+                const n = box.querySelector('#reg-name').value.trim();
+                const e = box.querySelector('#reg-email').value.trim(); 
+                const p = box.querySelector('#reg-pass').value.trim();
+                const p2 = box.querySelector('#reg-pass-repeat').value.trim();
+                const serverVal = box.querySelector('#reg-server').value.toLowerCase().replace(/\s+/g, '');
+                const country = box.querySelector('#reg-country').value; 
+                const m = box.querySelector('#reg-msg');
+
+                const isHidden = regPassInput.type === 'password';
+
+                if(!u || !n || !e || !p || !serverVal || (isHidden && !p2)) { 
+                    m.innerText = '⚠️ Llena todos los campos requeridos'; 
+                    m.style.color = '#fbbf24'; 
+                    return; 
+                }
+                
+                if (isHidden && p !== p2) {
+                    m.innerText = '⚠️ Las contraseñas no coinciden'; 
+                    m.style.color = '#ef4444'; 
+                    regPassRepeat.style.borderColor = '#ef4444';
+                    setTimeout(() => regPassRepeat.style.borderColor = 'rgba(255,255,255,0.4)', 2000);
+                    return;
+                }
+                if(!SERVERS_DB[serverVal]) { m.innerText = '⚠️ El servidor ingresado no es válido'; m.style.color = '#ef4444'; return; }
+
+                m.innerText = '⏳ Registrando en el servidor...'; m.style.color = '#fff';
+                box.querySelector('#btn-do-register').disabled = true;
+
+                // 🤖 LÓGICA DE ASIGNACIÓN DE DIVISAS POR DEFECTO OCULTA EN EL CÓDIGO
+                let defMonto = "25";
+                let defMoneda = "Bs.";
+                
+                if (country === 'CO') { defMonto = "4"; defMoneda = "USDT"; } 
+                else if (country === 'VE') { defMonto = "3"; defMoneda = "USDT"; }
+                else if (country === 'OT') { defMonto = "4"; defMoneda = "USDT"; }
+
+                const payload = { 
+                    token: MASTER_TOKEN, action: 'registrar_usuario', 
+                    usuario: u, nombre: n, correo: e, pass: p, 
+                    monto: defMonto, moneda: defMoneda, servidor: serverVal 
+                };
+                
+                // 1. FORZAMOS A USAR EL SERVIDOR ESCRITO EN EL MODAL DE REGISTRO
+                const dynamicApiUrl = SERVERS_DB[serverVal].script;
+                
+                // 2. HACEMOS FETCH A LA URL DINÁMICA
+                safeSendMessage({ action: 'proxy_fetch', url: dynamicApiUrl, options: { method: 'POST', body: JSON.stringify(payload) } }, res => {
+                    if(res && res.success && res.data && res.data.success) {
+                        m.innerText = '✅ ' + res.data.message; m.style.color = '#34d399';
+                        setTimeout(() => { 
+                            subOverlay.remove(); 
+                            userInput.inp.value = u; 
+                            passInput.inp.value = p; 
+                            
+                            // 3. SINCRONIZAMOS EL LOGIN PRINCIPAL CON EL NUEVO SERVIDOR
+                            serverInput.inp.value = serverVal;
+                            serverInput.inp.dispatchEvent(new Event('input'));
+                        }, 4000);
+                    } else {
+                        m.innerText = '❌ ' + (res?.data?.message || 'Error al registrar'); m.style.color = '#ef4444';
+                        box.querySelector('#btn-do-register').disabled = false;
+                    }
+                });
+            };
+        };
+        linkRecover.onclick = () => {
+            const { subOverlay, box } = crearSubModal('🔐 Recuperar Clave', `
+                <p style="color: #cbd5e1; font-size: 13px; text-align: center; margin-top: 0;">Ingresa tu usuario para recibir un PIN en tu correo.</p>
+                <input type="text" id="rec-user" placeholder="Tu Usuario " class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; margin-bottom: 10px;">
+                
+                <!-- 🔥 NUEVO: INPUT SERVIDOR COMO ÚLTIMA OPCIÓN 🔥 -->
+                <input type="text" id="rec-server" placeholder="Servidor" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; transition: border-color 0.3s, box-shadow 0.3s;">
+
+                <button id="btn-req-pin" style="width: 100%; padding: 15px; border-radius: 50px; border: none; background: #00b4ff; color: #fff; font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 16px;">ENVIAR PIN</button>
+                <button id="btn-cancel-rec" style="width: 100%; padding: 10px; border-radius: 50px; border: 1px solid #64748b; background: transparent; color: #94a3b8; font-weight: bold; cursor: pointer; margin-top: 10px;">Volver</button>
+                <div id="rec-msg" style="text-align: center; font-size: 13px; font-weight: bold; min-height: 20px; margin-top: 10px;"></div>
+                
+                <div id="step-2" style="display: none; flex-direction: column; gap: 10px; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                    <input type="text" id="rec-pin" placeholder="Código PIN de 6 dígitos" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid #3b82f6; background: rgba(59, 130, 246, 0.1); color: white; text-align: center; font-size: 18px; letter-spacing: 2px; outline: none; box-sizing: border-box;">
+                    
+                    <div style="position: relative; width: 100%;">
+                        <input type="password" id="rec-new-pass" placeholder="Nueva Contraseña" class="crm-login-input" style="width: 100%; padding: 12px 50px 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box;">
+                        <span id="rec-pass-eye" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: #fff; font-size: 20px; cursor: pointer; opacity: 0.9; user-select: none; z-index: 10;">👁️</span>
+                    </div>
+                    <input type="password" id="rec-new-pass-repeat" placeholder="Repetir Nueva Contraseña" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; transition: 0.3s;">
+
+                    <button id="btn-save-pass" style="width: 100%; padding: 15px; border-radius: 50px; border: none; background: #10b981; color: #fff; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 5px;">GUARDAR CONTRASEÑA</button>
+                </div>
+            `);
+
+            box.querySelector('#btn-cancel-rec').onclick = () => subOverlay.remove();
+
+            // 🔥 FORZAR FORMATOS EN VIVO 🔥
+            box.querySelector('#rec-user').addEventListener('input', function() { this.value = this.value.toUpperCase().replace(/\s+/g, ''); });
+            box.querySelector('#rec-pin').addEventListener('input', function() { this.value = this.value.replace(/\s+/g, ''); });
+            box.querySelector('#rec-new-pass').addEventListener('input', function() { this.value = this.value.replace(/\s+/g, ''); });
+            box.querySelector('#rec-new-pass-repeat').addEventListener('input', function() { this.value = this.value.replace(/\s+/g, ''); });
+
+            // 🔥 LÓGICA DEL SERVIDOR (Auto-llenado y Validación Visual) 🔥
+            const recServerInput = box.querySelector('#rec-server');
+            recServerInput.addEventListener('input', function() {
+                const val = this.value.toLowerCase().replace(/\s+/g, '');
+                this.value = val;
+                if (val === '') {
+                    this.style.borderColor = 'rgba(255,255,255,0.4)'; this.style.boxShadow = 'none';
+                } else if (SERVERS_DB[val]) {
+                    this.style.borderColor = '#34d399'; this.style.boxShadow = '0 0 10px rgba(52, 211, 153, 0.5)';
+                } else {
+                    this.style.borderColor = '#ef4444'; this.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.5)';
+                }
+            });
+
+            // Auto-llenado si ya hay uno guardado
+            const curSubRec = localStorage.getItem('serverSubdomain');
+            if (curSubRec) {
+                recServerInput.value = curSubRec;
+                recServerInput.dispatchEvent(new Event('input'));
+            }
+
+            // 🔥 LÓGICA DINÁMICA DEL OJITO 🔥
+            const recPassInput = box.querySelector('#rec-new-pass');
+            const recPassRepeat = box.querySelector('#rec-new-pass-repeat');
+            const recPassEye = box.querySelector('#rec-pass-eye');
+            
+            recPassEye.onclick = () => {
+                if (recPassInput.type === 'password') {
+                    recPassInput.type = 'text';
+                    recPassEye.innerText = '🙈';
+                    recPassRepeat.style.display = 'none';
+                    recPassRepeat.value = '';
+                } else {
+                    recPassInput.type = 'password';
+                    recPassEye.innerText = '👁️';
+                    recPassRepeat.style.display = 'block';
+                }
+            };
+
+            box.querySelector('#btn-req-pin').onclick = () => {
+                const u = box.querySelector('#rec-user').value.trim();
+                const srv = recServerInput.value.trim();
+                const m = box.querySelector('#rec-msg');
+
+                if(!u || !srv) { m.innerText = '⚠️ Ingresa tu usuario y servidor'; m.style.color = '#fbbf24'; return; }
+                if(!SERVERS_DB[srv]) { m.innerText = '⚠️ Servidor no válido'; m.style.color = '#ef4444'; return; }
+                
+                m.innerText = '⏳ Buscando usuario y procesando...'; m.style.color = '#fff';
+                box.querySelector('#btn-req-pin').disabled = true;
+
+                const dynamicApiUrl = SERVERS_DB[srv].script; // API Dinámica según el servidor escrito
+                const payload = { token: MASTER_TOKEN, action: 'solicitar_recuperacion', usuario: u };
+                
+                safeSendMessage({ action: 'proxy_fetch', url: dynamicApiUrl, options: { method: 'POST', body: JSON.stringify(payload) } }, res => {
+                    box.querySelector('#btn-req-pin').disabled = false; 
+                    
+                    if (res && res.success && res.data) {
+                        if (res.data.success) {
+                            m.innerText = '✅ ' + res.data.message; 
+                            m.style.color = '#34d399';
+                            box.querySelector('#btn-req-pin').style.display = 'none';
+                            box.querySelector('#rec-user').disabled = true;
+                            recServerInput.disabled = true; // Bloquea el servidor para el paso 2
+                            box.querySelector('#step-2').style.display = 'flex';
+                        } else {
+                            m.innerText = '❌ ' + (res.data.message || 'Error al enviar'); 
+                            m.style.color = '#ef4444';
+                        }
+                    } else {
+                        m.innerText = '❌ Error de comunicación con el servidor.'; 
+                        m.style.color = '#ef4444';
+                    }
+                });
+            };
+
+            box.querySelector('#btn-save-pass').onclick = () => {
+                const u = box.querySelector('#rec-user').value.trim();
+                const srv = recServerInput.value.trim();
+                const pin = box.querySelector('#rec-pin').value.trim();
+                const np = box.querySelector('#rec-new-pass').value.trim();
+                const np2 = box.querySelector('#rec-new-pass-repeat').value.trim();
+                const m = box.querySelector('#rec-msg');
+
+                const isHidden = recPassInput.type === 'password';
+
+                if(!pin || !np || (isHidden && !np2)) { 
+                    m.innerText = '⚠️ Ingresa el PIN y las contraseñas'; 
+                    m.style.color = '#fbbf24'; 
+                    return; 
+                }
+                
+                if(isHidden && np !== np2) { 
+                    m.innerText = '⚠️ Las contraseñas no coinciden'; 
+                    m.style.color = '#ef4444'; 
+                    recPassRepeat.style.borderColor = '#ef4444';
+                    setTimeout(() => recPassRepeat.style.borderColor = 'rgba(255,255,255,0.4)', 2000);
+                    return; 
+                }
+
+                m.innerText = '⏳ Actualizando...'; m.style.color = '#fff';
+                box.querySelector('#btn-save-pass').disabled = true;
+
+                const dynamicApiUrl = SERVERS_DB[srv].script; // API Dinámica
+                const payload = { token: MASTER_TOKEN, action: 'cambiar_password', usuario: u, pin: pin, nuevaPass: np };
+                
+                safeSendMessage({ action: 'proxy_fetch', url: dynamicApiUrl, options: { method: 'POST', body: JSON.stringify(payload) } }, res => {
+                    if(res && res.success && res.data && res.data.success) {
+                        m.innerText = '✅ ' + res.data.message; m.style.color = '#34d399';
+                        setTimeout(() => { 
+                            subOverlay.remove(); 
+                            userInput.inp.value = u; 
+                            passInput.inp.value = np; 
+                            // Sincronizar el servidor global si lo escribió diferente
+                            serverInput.inp.value = srv;
+                            serverInput.inp.dispatchEvent(new Event('input'));
+                        }, 3000);
+                    } else {
+                        m.innerText = '❌ ' + (res?.data?.message || 'Error al actualizar'); m.style.color = '#ef4444';
+                        box.querySelector('#btn-save-pass').disabled = false;
+                    }
+                });
+            };
+        };
+
+        linkChangePass.onclick = () => {
+            const { subOverlay, box } = crearSubModal('🔄 Cambiar Contraseña', `
+                <p style="color: #cbd5e1; font-size: 13px; text-align: center; margin-top: 0;">Ingresa tu contraseña actual y la nueva.</p>
+                <input type="text" id="chg-user" placeholder="Usuario " class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; margin-bottom: 10px;">
+                
+                <div style="position: relative; width: 100%; margin-bottom: 10px;">
+                    <input type="password" id="chg-old-pass" placeholder="Contraseña Actual" class="crm-login-input" style="width: 100%; padding: 12px 50px 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box;">
+                    <span id="chg-old-pass-eye" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: #fff; font-size: 20px; cursor: pointer; opacity: 0.9; user-select: none; z-index: 10;">👁️</span>
+                </div>
+                
+                <div style="position: relative; width: 100%; margin-bottom: 10px;">
+                    <input type="password" id="chg-new-pass" placeholder="Nueva Contraseña" class="crm-login-input" style="width: 100%; padding: 12px 50px 12px 20px; border-radius: 50px; border: 2px solid #3b82f6; background: rgba(59, 130, 246, 0.1); color: white; outline: none; box-sizing: border-box;">
+                    <span id="chg-pass-eye" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: #fff; font-size: 20px; cursor: pointer; opacity: 0.9; user-select: none; z-index: 10;">👁️</span>
+                </div>
+                
+                <input type="password" id="chg-new-pass-repeat" placeholder="Repetir Nueva Contraseña" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid #3b82f6; background: rgba(59, 130, 246, 0.1); color: white; outline: none; box-sizing: border-box; transition: 0.3s; margin-bottom: 10px;">
+                
+                <!-- 🔥 NUEVO: INPUT SERVIDOR COMO ÚLTIMA OPCIÓN 🔥 -->
+                <input type="text" id="chg-server" placeholder="Servidor" class="crm-login-input" style="width: 100%; padding: 12px 20px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); color: white; outline: none; box-sizing: border-box; transition: border-color 0.3s, box-shadow 0.3s;">
+
+                <button id="btn-do-change-pass" style="width: 100%; padding: 15px; border-radius: 50px; border: none; background: #38bdf8; color: #000; font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 16px; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);">ACTUALIZAR CONTRASEÑA</button>
+                <button id="btn-cancel-change" style="width: 100%; padding: 10px; border-radius: 50px; border: 1px solid #64748b; background: transparent; color: #94a3b8; font-weight: bold; cursor: pointer; margin-top: 10px;">Volver</button>
+                <div id="chg-msg" style="text-align: center; font-size: 13px; font-weight: bold; min-height: 20px; margin-top: 10px;"></div>
+            `);
+
+            box.querySelector('#btn-cancel-change').onclick = () => subOverlay.remove();
+
+            box.querySelector('#chg-user').addEventListener('input', function() { this.value = this.value.toUpperCase().replace(/\s+/g, ''); });
+            box.querySelector('#chg-old-pass').addEventListener('input', function() { this.value = this.value.replace(/\s+/g, ''); });
+            box.querySelector('#chg-new-pass').addEventListener('input', function() { this.value = this.value.replace(/\s+/g, ''); });
+            box.querySelector('#chg-new-pass-repeat').addEventListener('input', function() { this.value = this.value.replace(/\s+/g, ''); });
+
+            // 🔥 LÓGICA DEL SERVIDOR (Auto-llenado y Validación Visual) 🔥
+            const chgServerInput = box.querySelector('#chg-server');
+            chgServerInput.addEventListener('input', function() {
+                const val = this.value.toLowerCase().replace(/\s+/g, '');
+                this.value = val;
+                if (val === '') {
+                    this.style.borderColor = 'rgba(255,255,255,0.4)'; this.style.boxShadow = 'none';
+                } else if (SERVERS_DB[val]) {
+                    this.style.borderColor = '#34d399'; this.style.boxShadow = '0 0 10px rgba(52, 211, 153, 0.5)';
+                } else {
+                    this.style.borderColor = '#ef4444'; this.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.5)';
+                }
+            });
+
+            // Auto-llenado
+            const curSubChg = localStorage.getItem('serverSubdomain');
+            if (curSubChg) {
+                chgServerInput.value = curSubChg;
+                chgServerInput.dispatchEvent(new Event('input'));
+            }
+
+            // 🔥 LÓGICA DINÁMICA DE LOS OJITOS 🔥
+            const chgOldPass = box.querySelector('#chg-old-pass');
+            const chgOldPassEye = box.querySelector('#chg-old-pass-eye');
+            const chgNewPass = box.querySelector('#chg-new-pass');
+            const chgNewPassRepeat = box.querySelector('#chg-new-pass-repeat');
+            const chgPassEye = box.querySelector('#chg-pass-eye');
+
+            chgOldPassEye.onclick = () => {
+                if (chgOldPass.type === 'password') {
+                    chgOldPass.type = 'text';
+                    chgOldPassEye.innerText = '🙈';
+                } else {
+                    chgOldPass.type = 'password';
+                    chgOldPassEye.innerText = '👁️';
+                }
+            };
+
+            chgPassEye.onclick = () => {
+                if (chgNewPass.type === 'password') {
+                    chgNewPass.type = 'text';
+                    chgPassEye.innerText = '🙈';
+                    chgNewPassRepeat.style.display = 'none';
+                    chgNewPassRepeat.value = '';
+                } else {
+                    chgNewPass.type = 'password';
+                    chgPassEye.innerText = '👁️';
+                    chgNewPassRepeat.style.display = 'block';
+                }
+            };
+
+            box.querySelector('#btn-do-change-pass').onclick = () => {
+                const u = box.querySelector('#chg-user').value.trim();
+                const srv = chgServerInput.value.trim();
+                const oldP = chgOldPass.value.trim();
+                const newP = chgNewPass.value.trim();
+                const newP2 = chgNewPassRepeat.value.trim();
+                const m = box.querySelector('#chg-msg');
+
+                const isHidden = chgNewPass.type === 'password';
+
+                if(!u || !oldP || !newP || !srv || (isHidden && !newP2)) { 
+                    m.innerText = '⚠️ Llena todos los campos requeridos'; 
+                    m.style.color = '#fbbf24'; 
+                    return; 
+                }
+                if(!SERVERS_DB[srv]) { m.innerText = '⚠️ Servidor no válido'; m.style.color = '#ef4444'; return; }
+                
+                if(isHidden && newP !== newP2) { 
+                    m.innerText = '⚠️ Las contraseñas nuevas no coinciden'; 
+                    m.style.color = '#ef4444'; 
+                    chgNewPassRepeat.style.borderColor = '#ef4444';
+                    setTimeout(() => chgNewPassRepeat.style.borderColor = '#3b82f6', 2000);
+                    return; 
+                }
+
+                m.innerText = '⏳ Actualizando...'; m.style.color = '#fff';
+                box.querySelector('#btn-do-change-pass').disabled = true;
+
+                const dynamicApiUrl = SERVERS_DB[srv].script; // API Dinámica
+                const payload = { token: MASTER_TOKEN, action: 'cambiar_password_conocida', usuario: u, passAntigua: oldP, nuevaPass: newP };
+                
+                safeSendMessage({ action: 'proxy_fetch', url: dynamicApiUrl, options: { method: 'POST', body: JSON.stringify(payload) } }, res => {
+                    if(res && res.success && res.data && res.data.success) {
+                        m.innerText = '✅ ' + res.data.message; m.style.color = '#34d399';
+                        setTimeout(() => { 
+                            subOverlay.remove(); 
+                            userInput.inp.value = u; 
+                            passInput.inp.value = newP;
+                            // Sincronizar el servidor global
+                            serverInput.inp.value = srv;
+                            serverInput.inp.dispatchEvent(new Event('input'));
+                        }, 3000);
+                    } else {
+                        m.innerText = '❌ ' + (res?.data?.message || 'Error al actualizar. Verifica tu contraseña actual.'); m.style.color = '#ef4444';
+                        box.querySelector('#btn-do-change-pass').disabled = false;
+                    }
+                });
+            };
+        };
+        // 👆 FIN BLOQUE NUEVO 👆
 
         const handleLogin = async () => {
             if (!isExtensionAlive) { msgBox.innerText = '⚠️ Recarga (F5)'; msgBox.style.color = '#ffd700'; return; }
+
+            // Validación de servidor escrito
+            const srvText = serverInput.inp.value.trim();
+            if (!srvText) { msgBox.innerText = '⚠️ Escribe tu servidor arriba'; msgBox.style.color = '#fbbf24'; return; }
+            if (!SERVERS_DB[srvText]) { 
+                msgBox.innerText = '⚠️ El servidor escrito no existe'; 
+                msgBox.style.color = '#ef4444'; 
+                serverInput.inp.style.borderColor = '#ef4444';
+                setTimeout(() => serverInput.inp.style.borderColor = 'rgba(255,255,255,0.4)', 2000);
+                return; 
+            }
+
+            // Asignar variables dinámicas según lo escrito
+            localStorage.setItem('serverSubdomain', srvText);
+            CEREBRO_URL = SERVERS_DB[srvText].script;
+            FIREBASE_URL = SERVERS_DB[srvText].firebase;
+            API_URL = CEREBRO_URL;
+            
+            
 
             const u = userInput.inp.value.trim();
             const p = passInput.inp.value.trim();
             if (!u || !p) { msgBox.innerText = '⚠️ Ingrese credenciales'; msgBox.style.color = '#ffd700'; return; }
 
             if (!API_URL) { 
-                msgBox.innerText = '🚨 Error Crítico: Servidor no configurado.'; 
+                msgBox.innerText = '🚨 Error Crítico: La ruta del servidor falló.'; 
                 msgBox.style.color = '#ef4444'; 
                 return; 
             }
@@ -1761,7 +2504,7 @@ function showNotification(message, msgId, type = 'info') {
             const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             
             const url = new URL(API_URL);
-            url.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9'); // 🛡️ LLAVE MAESTRA
+            url.searchParams.append('token', MASTER_TOKEN); // 🛡️ LLAVE MAESTRA
             url.searchParams.append('action', 'login');
             url.searchParams.append('usuario', u);
             url.searchParams.append('contrasena', p);
@@ -1801,8 +2544,12 @@ function showNotification(message, msgId, type = 'info') {
                     localStorage.setItem('configRef', res.permisoRef || 'si'); 
 
                     const userRole = res.puesto ? ` ${res.puesto}` : ''; 
+                    // Extraer y limpiar el nombre real
+                    const realServerName = srvText.replace(/-/g, ' ').toUpperCase(); 
                     
-                    msgBox.innerText = `✅ Acceso Autorizado${userRole}`; msgBox.style.color = '#51cf66';
+                    // Inyectamos HTML para mostrar el nombre del servidor en azul brillante bajo el mensaje de éxito
+                    msgBox.innerHTML = `✅ Acceso Autorizado${userRole}<br><span style="font-size:12px; color:#38bdf8;">Conectado a: ${realServerName}</span>`; 
+                    msgBox.style.color = '#51cf66';
                     showNotification(`Bienvenido${userRole}: ${res.message}`, 3000, 'success');
                     
                     initAudioSystem();
@@ -1818,23 +2565,131 @@ function showNotification(message, msgId, type = 'info') {
                 } else {
                     btnLogin.disabled = false; btnLogin.innerText = 'INGRESAR'; btnLogin.style.opacity = '1';
                     
-                    // 👇 INICIO INTERCEPCIÓN DE PAGO PROPORCIONAL Y ESTÉTICA 👇
+                    // 👇 INICIO INTERCEPCIÓN DE PAGO INTERNACIONAL Y ESTÉTICA 👇
                     if (res.impago) {
                         title.style.display = 'none';
+                        serverInput.wrap.style.display = 'none'; 
                         userInput.wrap.style.display = 'none';
                         passInput.wrap.style.display = 'none';
                         btnLogin.style.display = 'none';
+                        
+                        // 🔥 OCULTAMOS LOS ENLACES PARA QUE NO ESTORBEN ARRIBA 🔥
+                        extraLinksDiv.style.display = 'none'; 
+                        
                         const btnRepairNode = document.getElementById('crm-hidden-repair-btn');
                         if(btnRepairNode) btnRepairNode.style.display = 'none';
                         
-                        // Ajustar contenedor para que sea una tarjeta ancha
+                        // Ajustar contenedor principal
                         formContainer.style.width = '100%';
                         formContainer.style.maxWidth = '1300px'; 
                         formContainer.style.padding = '10px'; 
                         
-                        const montoPagar = res.monto || "35";
+                        // 🔥 FIX CRÍTICO: LIBERAR LA BURBUJA DE SUS 350px DE LÍMITE 🔥
+                        msgBox.style.maxWidth = 'none';
+                        msgBox.style.width = '100%';
+                        msgBox.style.border = 'none';
+                        msgBox.style.backgroundColor = 'transparent';
+                        msgBox.style.boxShadow = 'none';
+                        msgBox.style.padding = '0'; 
                         
-                        // Nuevo HTML: Diseño de tarjeta dividida (Split-Card Design)
+                        const montoPagar = res.monto || "25";
+                        const monedaActiva = res.moneda || "Bs."; // 🌍 Variable de país
+                        
+                        // 🤖 LÓGICA DE PAÍSES
+                        const esBolivia = monedaActiva.toLowerCase().includes('bs');
+                        const esColombia = monedaActiva.toLowerCase().includes('cop') || window.location.href.includes('co-crm');
+
+                        // Lógica de Moneda Principal (Fuerza USDT para Binance, ya sea Colombia o Extranjero normal)
+                        let monedaPrincipal = monedaActiva;
+                        if (esColombia || monedaActiva.toUpperCase() === 'USD') monedaPrincipal = "USDT";
+
+                        // Selección de imagen QR de PAGO (El gigante de la derecha)
+                        let imgQR = "https://i.postimg.cc/v82HTd1M/QRBINANCE.jpg"; // Default Extranjero (Binance)
+                        let tituloQR = "BINANCE PAY (USDT)";
+                        if (esBolivia) { 
+                            imgQR = "https://i.postimg.cc/W1PMfWrC/QR.jpg"; // QR Local Bolivia
+                            tituloQR = "PAGO QR LOCAL";
+                            monedaPrincipal = monedaActiva; // Retorna a Bs.
+                        }
+
+                        // Componentes Reutilizables para el contacto de Telegram (Enlace completo + Botón Copiar)
+                        const linkTelegramHtml = `
+                            <div style="display: inline-flex; align-items: center; background: rgba(0,0,0,0.4); padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.4); width: fit-content; max-width: 100%;">
+                                <a href="https://t.me/extensionesgral" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: bold; font-size: 13px; word-break: break-all;">https://t.me/extensionesgral</a>
+                                <span onclick="navigator.clipboard.writeText('https://t.me/extensionesgral'); this.innerText='✅'; setTimeout(()=>this.innerText='📋', 1500);" style="cursor: pointer; background: transparent; border: none; padding: 0 0 0 10px; font-size: 16px; margin-left: 8px; border-left: 1px solid rgba(255,255,255,0.3);" title="Copiar enlace">📋</span>
+                            </div>
+                        `;
+
+                        // QR Pequeño de Telegram (Con función clic para Pantalla Completa)
+                        const accionZoom = "const o=document.createElement('div');o.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:20px;';const i=document.createElement('img');i.src='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://t.me/extensionesgral&margin=0';i.style.cssText='max-width:90%;max-height:80%;border:5px solid #38bdf8;border-radius:20px;box-shadow:0 0 50px rgba(56,189,248,0.5);';const t=document.createElement('p');t.innerText='Toca para cerrar';t.style.cssText='color:white;font-family:sans-serif;font-size:16px;margin:0;font-weight:bold;';o.appendChild(i);o.appendChild(t);o.onclick=()=>o.remove();document.body.appendChild(o);";
+                        
+                        const qrTelegramHtml = `
+                            <div title="Clic para ampliar" onclick="${accionZoom}" style="background: white; border-radius: 8px; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid #38bdf8; width: 80px; height: 80px; flex-shrink: 0; margin-left: 10px; cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://t.me/extensionesgral&margin=0" alt="QR Telegram" style="width: 100%; height: 100%; object-fit: contain;">
+                                <div style="position: absolute; bottom: -8px; background: #38bdf8; color: #000; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">AMPLIAR 🔍</div>
+                            </div>
+                        `;
+
+                        // Selección de Instrucciones (Con el pequeño QR y Botón incrustados a la izquierda)
+                        let pasosInstrucciones = "";
+
+                        if (esBolivia) {
+                            pasosInstrucciones = `
+                                <div style="display: flex; flex-direction: row; gap: 15px; align-items: center;">
+                                    <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">1</div>
+                                    <p style="margin: 0; font-size: 15px; color: #e2e8f0; line-height: 1.4;">Escanea el código QR de la derecha para pagar.</p>
+                                </div>
+                                <div style="display: flex; flex-direction: row; gap: 15px; align-items: flex-start;">
+                                    <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; margin-top: 5px;">2</div>
+                                    <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; background: rgba(56, 189, 248, 0.05); border: 1px dashed rgba(56, 189, 248, 0.3); padding: 10px 15px; border-radius: 10px;">
+                                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                                            <p style="margin: 0; font-size: 14px; color: #e2e8f0; line-height: 1.4;">Comunícate y envía el comprobante a Telegram mediante el enlace o escaneando este QR:</p>
+                                            ${linkTelegramHtml}
+                                        </div>
+                                        ${qrTelegramHtml}
+                                    </div>
+                                </div>
+                            `;
+                        } else if (esColombia) {
+                            pasosInstrucciones = `
+                                <div style="display: flex; flex-direction: row; gap: 15px; align-items: flex-start;">
+                                    <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; margin-top: 5px;">1</div>
+                                    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                                        <p style="margin: 0; font-size: 15px; color: #e2e8f0; line-height: 1.4;"><b>Opción A (USDT):</b> Escanea el QR de Binance Pay a la derecha.</p>
+                                        <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; background: rgba(56, 189, 248, 0.1); padding: 12px 15px; border: 1px solid rgba(56,189,248,0.3); border-radius: 10px;">
+                                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                                <p style="margin: 0; font-size: 14px; color: #e2e8f0; line-height: 1.4;"><b>Opción B (Pesos):</b> Pago local (Aprox. 16.000 COP) contactándonos a Telegram por el enlace o escaneando el QR:</p>
+                                                ${linkTelegramHtml}
+                                            </div>
+                                            ${qrTelegramHtml}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; flex-direction: row; gap: 15px; align-items: center; margin-top: 5px;">
+                                    <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">2</div>
+                                    <p style="margin: 0; font-size: 15px; color: #e2e8f0; line-height: 1.4;">Envía tu comprobante de pago por Telegram.</p>
+                                </div>
+                            `;
+                        } else {
+                            pasosInstrucciones = `
+                                <div style="display: flex; flex-direction: row; gap: 15px; align-items: center;">
+                                    <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">1</div>
+                                    <p style="margin: 0; font-size: 15px; color: #e2e8f0; line-height: 1.4;">Escanea el código QR de Binance Pay a la derecha para pagar.</p>
+                                </div>
+                                <div style="display: flex; flex-direction: row; gap: 15px; align-items: flex-start;">
+                                    <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; margin-top: 5px;">2</div>
+                                    <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; background: rgba(56, 189, 248, 0.05); border: 1px dashed rgba(56, 189, 248, 0.3); padding: 10px 15px; border-radius: 10px;">
+                                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                                            <p style="margin: 0; font-size: 14px; color: #e2e8f0; line-height: 1.4;">Comunícate y envía el comprobante a Telegram mediante el enlace o escaneando este QR:</p>
+                                            ${linkTelegramHtml}
+                                        </div>
+                                        ${qrTelegramHtml}
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        // Nuevo HTML: Diseño final dinámico (QR Pago gigante a la derecha)
                         msgBox.innerHTML = `
                             <div style="background: rgba(15, 23, 42, 0.98); border: 3px solid #a855f7; border-radius: 20px; padding: 40px; text-align: left; color: white; box-shadow: 0 0 50px rgba(168, 85, 247, 0.6); font-family: sans-serif; display: flex; flex-direction: row; gap: 40px; justify-content: space-between; align-items: stretch; border-color: transparent; border-image: linear-gradient(135deg, #a855f7, #6d28d9) 1; border-style: solid; border-width: 3px;">
                                 
@@ -1846,25 +2701,17 @@ function showNotification(message, msgId, type = 'info') {
                                         
                                         <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 10px; padding: 15px 20px; display: flex; flex-direction: row; align-items: center; gap: 10px; justify-content: flex-start; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2); width: fit-content; margin: 5px 0;">
                                             <p style="margin: 0; font-size: 18px; font-weight: bold; color: #fca5a5;">Monto a pagar:</p>
-                                            <p style="margin: 0; font-size: 28px; font-weight: 900; color: #fff; background: rgba(0,0,0,0.4); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">Bs. ${montoPagar}</p>
+                                            <p style="margin: 0; font-size: 28px; font-weight: 900; color: #fff; background: rgba(0,0,0,0.4); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">${monedaPrincipal} ${montoPagar}</p>
                                         </div>
                                     </div>
                                     
                                     <div style="display: flex; flex-direction: column; gap: 18px; margin: 10px 0;">
-                                        <div style="display: flex; flex-direction: row; gap: 15px; align-items: center;">
-                                            <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">1</div>
-                                            <p style="margin: 0; font-size: 15px; color: #e2e8f0; line-height: 1.4;">Escanea el código QR de la derecha para pagar.</p>
-                                        </div>
+                                        ${pasosInstrucciones}
                                         
-                                        <div style="display: flex; flex-direction: row; gap: 15px; align-items: center;">
-                                            <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">2</div>
-                                            <p style="margin: 0; font-size: 15px; color: #e2e8f0; line-height: 1.4;">Envía el comprobante a WhatsApp <b>+591 62596174</b></p>
-                                        </div>
-                                        
-                                        <div style="display: flex; flex-direction: row; gap: 15px; align-items: center;">
+                                        <div style="display: flex; flex-direction: row; gap: 15px; align-items: center; margin-top: 5px;">
                                             <div style="background: #a855f7; color: white; font-weight: bold; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">3</div>
                                             <div style="display: flex; align-items: center; gap: 8px;">
-                                                <p style="margin: 0; font-size: 15px; color: #e2e8f0;">Incluye tu</p>
+                                                <p style="margin: 0; font-size: 15px; color: #e2e8f0;">No olvides incluir tu</p>
                                                 <div style="background: rgba(0,0,0,0.5); border: 2px solid #a855f7; border-radius: 8px; padding: 6px 12px;">
                                                     <b style="color: white; font-size: 18px; font-weight: 900; letter-spacing: 1px;">ID: ${u.toUpperCase()}</b>
                                                 </div>
@@ -1877,11 +2724,13 @@ function showNotification(message, msgId, type = 'info') {
                                     </button>
                                 </div>
 
-                                <div style="flex: 0 0 38%; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 25px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 15px rgba(0,0,0,0.5);">
+                                <div style="flex: 0 0 36%; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 15px rgba(0,0,0,0.5); gap: 15px;">
+                                    <p style="margin: 0; color: #fcd34d; font-weight: bold; letter-spacing: 2px; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); text-align: center;">${tituloQR}</p>
                                     <div style="background: white; border-radius: 15px; padding: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,0,0,0.6); border: 4px solid white; aspect-ratio: 1 / 1; width: 100%;">
-                                        <img src="https://i.postimg.cc/W1PMfWrC/QR.jpg" alt="Código QR de Pago" style="width: 100%; height: 100%; object-fit: contain;">
+                                        <img src="${imgQR}" alt="Código QR de Pago Principal" style="width: 100%; height: 100%; object-fit: contain;">
                                     </div>
                                 </div>
+
                             </div>
                         `;
                     } else {
@@ -1912,7 +2761,7 @@ function showNotification(message, msgId, type = 'info') {
                                     try {
                                         // 1. VERIFICAR CREDENCIALES
                                         const urlCheck = new URL(API_URL);
-                                        urlCheck.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9'); // 🔥 AGREGADO
+                                        urlCheck.searchParams.append('token', MASTER_TOKEN); // 🔥 AGREGADO
                                         urlCheck.searchParams.append('action', 'login');
                                         urlCheck.searchParams.append('usuario', kUser);
                                         urlCheck.searchParams.append('contrasena', kPass);
@@ -1928,7 +2777,7 @@ function showNotification(message, msgId, type = 'info') {
                                         // 2. EJECUTAR EL BORRADO REAL
                                         btnKill.innerText = '🔥 Borrando...';
                                         const urlKK = new URL(API_URL);
-                                        urlKK.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9'); // 🔥 AGREGADO
+                                        urlKK.searchParams.append('token', MASTER_TOKEN); // 🔥 AGREGADO
                                         urlKK.searchParams.append('action','kill_all');
                                         urlKK.searchParams.append('usuario', kUser);
                                         
@@ -1954,7 +2803,11 @@ function showNotification(message, msgId, type = 'info') {
         btnLogin.onclick = handleLogin;
         passInput.inp.onkeydown = (e) => { if (e.key === 'Enter') handleLogin(); };
 
-        formContainer.append(title, userInput.wrap, passInput.wrap, btnLogin, btnRepair, msgBox);
+        // Le damos un ID al msgBox para poder interactuar con él desde el onchange del selector
+        msgBox.id = 'temp-msg-box';
+
+        // 🔥 Inyectamos inputs en el nuevo orden (Usuario -> Pass -> Server) para evitar guardado erróneo en el navegador 🔥
+        formContainer.append(title, userInput.wrap, passInput.wrap, serverInput.wrap, btnLogin, extraLinksDiv, btnRepair, msgBox);
         overlay.appendChild(formContainer); document.body.appendChild(overlay);
     }
 
@@ -2047,12 +2900,41 @@ function showNotification(message, msgId, type = 'info') {
     safeSendMessage({ action: 'play_audio_maestro', soundUrl: soundData, loop: false });
 }
     // =========================================================
-    // 🔥 ESCUCHA EN TIEMPO REAL (FIREBASE) + ANTI-SUEÑO
+    // 🔥 ESCUCHA EN TIEMPO REAL (FIREBASE) + MOTOR HÍBRIDO
     // =========================================================
+    window.BG_MODE_DYNAMIC = false; // Por defecto asumimos el estático/ofuscado
+
+    // 🛠️ HERRAMIENTA HÍBRIDA: Constructor inteligente de URLs
+    function getHybridUrl(msgId, user, status, timestamp) {
+        const subActivo = localStorage.getItem('serverSubdomain');
+        let urlDestino = CEREBRO_URL;
+        let tokenUsado = "SST_V12_CORP_SECURE_2026_X9"; // Fallback seguro
+        
+        try { if (typeof MASTER_TOKEN !== 'undefined') tokenUsado = MASTER_TOKEN; } catch(e){}
+
+        if (window.BG_MODE_DYNAMIC) {
+            // Background Avanzado (Source 4): Enrutamiento Dinámico
+            urlDestino = (subActivo && SERVERS_DB[subActivo]) ? SERVERS_DB[subActivo].script : CEREBRO_URL;
+        } else {
+            // Background Ofuscado (Source 3): Enrutamiento Estático y Token Hardcodeado
+            urlDestino = CEREBRO_URL;
+            tokenUsado = "SST_V12_CORP_SECURE_2026_X9";
+        }
+        return `${urlDestino}?token=${tokenUsado}&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${timestamp}&status=${status}`;
+    }
+
     function iniciarEscuchaFirebase() {
         const miUsuario = localStorage.getItem('usuarioLogueado');
         const miRol = localStorage.getItem('userRole') || 'AGENTE';
         if (!miUsuario) return;
+
+        // 🕵️ DETECCIÓN DE BACKGROUND (Ping al worker)
+        safeSendMessage({ action: "ping_keep_alive" }, (res) => {
+            if (res && res.status === "alive") {
+                window.BG_MODE_DYNAMIC = true;
+                console.log("🟢 SST HÍBRIDO: Background avanzado detectado (Dinámico)");
+            }
+        });
 
         // Le pasa la responsabilidad de conectarse a Firebase al Background
         safeSendMessage({
@@ -2080,7 +2962,8 @@ function showNotification(message, msgId, type = 'info') {
                 const randomDelay = Math.floor(Math.random() * 11000) + 1000; 
 
                 setTimeout(() => {
-                    const urlEntrega = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${aviso.id}&usuario=${encodeURIComponent(miUsuario)}&ts=${tiempoCapturado}&status=ENTREGADO`;
+                    // 🔥 MOTOR HÍBRIDO: Resolución Inteligente
+                    const urlEntrega = getHybridUrl(aviso.id, miUsuario, 'ENTREGADO', tiempoCapturado);
                     
                     const enviarConInsistencia = (intentosRestantes) => {
                         try {
@@ -2118,14 +3001,6 @@ function showNotification(message, msgId, type = 'info') {
     function heartbeat(fromVisibility = false) {
         if (!isExtensionAlive) return;
 
-        // 🔥 ESCUDO ANTI-COLAPSO DE GOOGLE (Límites de Cuota)
-        const lastGlobalHb = parseInt(localStorage.getItem('LAST_GLOBAL_HB_TS') || '0');
-        const umbral = fromVisibility ? 30000 : 110000; 
-        if (Date.now() - lastGlobalHb < umbral) {
-            return; 
-        }
-        localStorage.setItem('LAST_GLOBAL_HB_TS', Date.now().toString());
-
         lastHeartbeatTime = Date.now();
 
         const user = localStorage.getItem('usuarioLogueado');
@@ -2134,32 +3009,72 @@ function showNotification(message, msgId, type = 'info') {
 
         if (!user || !sessId) return;
 
+        // ⏱️ 1. ACUMULADOR EXACTO DE TIEMPO (Funciona SIEMPRE sin importar el escudo)
         const lastVisTs = parseInt(localStorage.getItem('CRM_TAB_VISIBLE_TS') || '0');
         const isGloballyVisible = (Date.now() - lastVisTs) < 5000; 
+        
         let accumulatedMs = parseInt(localStorage.getItem('CRM_ACCUMULATED_MS') || '0');
         let lastEval = parseInt(localStorage.getItem('LAST_EVAL_TS') || Date.now().toString());
         let elapsed = Date.now() - lastEval;
+        
         localStorage.setItem('LAST_EVAL_TS', Date.now().toString());
+        
+        // Recorte seguro: Evalúa el tiempo real entre ticks de pestañas sin perder segundos
         if (elapsed > 25000) elapsed = 20000; 
         if (elapsed < 0) elapsed = 0;
 
         let shouldUpdateExcel = false;
-        if (isGloballyVisible) {
-            accumulatedMs += elapsed; 
-            if (accumulatedMs >= (3 * 60 * 1000)) { 
+        
+        let forceFetchTarget = parseInt(localStorage.getItem('CRM_FORCE_FETCH_TS') || '0');
+
+        if (forceFetchTarget > 0) {
+            // FASE 2: Ya miró 3 min. Ahora el reloj espera 7 minutos en segundo plano (mirando o no).
+            if (Date.now() >= forceFetchTarget) {
                 shouldUpdateExcel = true;
-                accumulatedMs = 0; 
             }
-            localStorage.setItem('CRM_ACCUMULATED_MS', accumulatedMs.toString());
+        } else {
+            // FASE 1: Sumando los 3 minutos obligatorios de mirar activamente la pantalla.
+            if (isGloballyVisible) {
+                accumulatedMs += elapsed; 
+                localStorage.setItem('CRM_ACCUMULATED_MS', accumulatedMs.toString());
+            }
+
+            // Al llegar a 3 minutos activos, disparamos el reloj de 7 minutos pasivos.
+            if (accumulatedMs >= (3 * 60 * 1000)) { 
+                localStorage.setItem('CRM_FORCE_FETCH_TS', (Date.now() + (7 * 60 * 1000)).toString());
+                localStorage.setItem('CRM_ACCUMULATED_MS', '0'); // Vaciamos la alcancía activa
+            }
         }
 
-        const url = new URL(API_URL);
+        // 🛡️ 2. ESCUDO ANTI-COLAPSO DE GOOGLE MULTI-PESTAÑA (110 segundos)
+        const lastGlobalHb = parseInt(localStorage.getItem('LAST_GLOBAL_HB_TS') || '0');
+        const umbral = fromVisibility ? 30000 : 110000; 
+        
+        // REGLA DE ORO: Bloqueamos el fetch SOLO si el escudo está activo Y NO hay que actualizar el Excel
+        if (!shouldUpdateExcel && (Date.now() - lastGlobalHb < umbral)) {
+            return; 
+        }
+
+        // Si la petición va a salir, sellamos el escudo para que otras pestañas no molesten a Google
+        localStorage.setItem('LAST_GLOBAL_HB_TS', Date.now().toString());
+
+        // Si la petición lleva la orden de actualizar Excel, reseteamos el contador pasivo a cero AHORA.
+        if (shouldUpdateExcel) {
+            localStorage.setItem('CRM_FORCE_FETCH_TS', '0');
+        }
+
+        // 🌐 3. RESOLUCIÓN DINÁMICA DE SERVIDOR (Ruteo Inteligente)
+        const subActivo = localStorage.getItem('serverSubdomain');
+        const apiDinamica = (subActivo && SERVERS_DB[subActivo]) ? SERVERS_DB[subActivo].script : API_URL;
+        
+        const url = new URL(apiDinamica);
+
         // 🔥 NUEVO: SINCRONIZADOR DEL HISTORIAL DE CUENTAS CRM 🔥
         if (localStorage.getItem('SST_NEEDS_SYNC') === 'true') {
             const historialPendiente = localStorage.getItem('SST_CRM_HISTORY');
             if (historialPendiente && historialPendiente !== '[]') {
                 const payloadSync = {
-                    token: 'SST_V12_CORP_SECURE_2026_X9',
+                    token: MASTER_TOKEN,
                     action: 'sync_historial_cuentas',
                     usuarioExt: user,
                     logs: JSON.parse(historialPendiente)
@@ -2188,7 +3103,7 @@ function showNotification(message, msgId, type = 'info') {
             }
         }
         // 🔥 FIN SINCRONIZADOR 🔥
-        url.searchParams.append('token', 'SST_V12_CORP_SECURE_2026_X9');
+        url.searchParams.append('token', MASTER_TOKEN);
         url.searchParams.append('action', 'heartbeat');
         url.searchParams.append('usuario', user);
         url.searchParams.append('sessionId', sessId); 
@@ -2218,7 +3133,9 @@ function showNotification(message, msgId, type = 'info') {
                 // Reportar entregado si Firebase falló
                 if (!isDelivered) {
                     localStorage.setItem('DELIVERED_' + msgId, 'true');
-                    const urlEntregaHB = `${CEREBRO_URL}?token=SST_V12_CORP_SECURE_2026_X9&action=ack_aviso&msgId=${msgId}&usuario=${encodeURIComponent(user)}&ts=${Date.now()}&status=ENTREGADO`;
+                    
+                    // 🔥 MOTOR HÍBRIDO: Resolución Inteligente
+                    const urlEntregaHB = getHybridUrl(msgId, user, 'ENTREGADO', Date.now());
                     try { safeSendMessage({ action: 'proxy_fetch', url: urlEntregaHB, options: { method: 'GET' } }); } catch(e){}
                 }
 
